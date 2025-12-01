@@ -1,0 +1,32 @@
+{
+  "name": "wannawork_app",
+  "version": "1.0.0",
+  "description": "Software engeneering project for the University of Trento",
+  "homepage": "https://github.com/StefanoVidesott/WannaWork_App#readme",
+  "bugs": {
+    "url": "https://github.com/StefanoVidesott/WannaWork_App/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StefanoVidesott/WannaWork_App.git"
+  },
+  "license": "ISC",
+  "author": "Stefano Videsott",
+  "type": "commonjs",
+  "main": "app/server.js",
+  "scripts": {
+    "start": "node app/server.js",
+    "dev": "nodemon app/server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

@@ -1,0 +1,5 @@
+node_modules/
+docker-compose.yaml
+.env
+context.md
+create-context.sh
