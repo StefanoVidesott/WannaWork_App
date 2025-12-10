@@ -1,5 +1,6 @@
 node_modules/
+tests/
+
 docker-compose.yaml
+package-lock.json
 .env
-context.md
-create-context.sh
