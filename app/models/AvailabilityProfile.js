@@ -28,4 +28,4 @@ const availabilityProfileSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('AvailabilityProfile', availabilityProfileSchema);
+export default mongoose.model('AvailabilityProfile', availabilityProfileSchema);
