@@ -11,7 +11,14 @@ import connectDB from './config/database.js';
 // Import routes
 // import studentsRouter from './routes/students.js';
 // import skillsRouter from './routes/skills.js';
+import employeesRouter from './routes/Employees.js';
+import login from './routes/login.js';
 import educationsRouter from './routes/educations.js';
+import AvailabilityProfileRouter from './routes/AvailabilityProfiles.js';
+
+// Import middleware
+import tokenChecker from './middleware/tokenVerify.js';
+
 
 // Determine __dirname in ES module scope
 const __filename = fileURLToPath(import.meta.url);
@@ -33,11 +40,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Middleware
 app.use(express.json());
+// app.use('/api/v1/availabilityProfile/', tokenChecker);
 
 // Routes
 // app.use('/api/v1/students', studentsRouter);
 // app.use('/api/v1/skills', skillsRouter);
+// app.use('/api/v1/availabilityProfile', availabilityProfileRouter);
+app.use('/api/v1/employees', employeesRouter);
+app.use('/api/v1/login', login);
 app.use('/api/v1/educations', educationsRouter);
+app.use('/ap1/v1/availabilityProfile', AvailabilityProfileRouter);
 
 // Health check
 app.get('/api/v1/health', (req, res) => {

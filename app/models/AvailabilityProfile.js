@@ -25,6 +25,14 @@ const availabilityProfileSchema = new mongoose.Schema({
     availability: {
         type: Date,
         required: false
+    },
+    cvFile: {
+        filename: { type: String },
+        // originalName: { type: String },
+        mimeType: { type: String, default: 'application/pdf' },
+        size: { type: Number },
+        path: { type: String },
+       // uploadedAt: { type: Date, default: Date.now }
     }
 }, { timestamps: true });
 
