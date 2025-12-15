@@ -3,30 +3,28 @@ import Education from '../models/Education.js';
 
 const router = express.Router();
 
-// GET /api/v1/educations
-// Restituisce tutte le università/facoltà
+// GET /api/v1/educations/
 router.get('/', async (req, res) => {
-  try {
-    const educations = await Education.find().sort('name');
-    res.json(educations);
-  } catch (error) {
-    res.status(500).json({ error: 'Errore server' });
-  }
-});
+    try {
+        // Recupera tutti, ordinati alfabeticamente per nome (A-Z)
+        // Selezioniamo solo _id, name e university per mantenere il payload leggero
+        const educationList = await Education.find()
+            .select('name university')
+            .sort({ name: 1 });
 
-// POST /api/v1/educations
-// Crea una nuova education
-router.post('/', async (req, res) => {
-  try {
-    const education = new Education(req.body);
-    await education.save();
-    res.status(201).json(education);
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({ error: 'Education già esistente' });
+        return res.status(200).json({
+            success: true,
+            count: educationList.length,
+            data: educationList
+        });
+
+    } catch (error) {
+        console.error('Errore recupero Education:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Errore del server durante il recupero degli istituti'
+        });
     }
-    res.status(500).json({ error: 'Errore creazione education' });
-  }
 });
 
 export default router;

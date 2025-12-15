@@ -2,7 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import Student from '../models/Student.js';
-import Employee from '../models/Employeer.js'; 
+import Employee from '../models/Employeer.js';
 import bcrypt from 'bcryptjs';
 
 const router = express.Router();
@@ -11,11 +11,11 @@ router.post('/', async function(req, res) {
     try {
         // 1. Validazione input
         const { email, password } = req.body;
-        
+
         if (!email || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Email e password sono richiesti' 
+            return res.status(400).json({
+                success: false,
+                message: 'Email e password sono richiesti'
             });
         }
 
@@ -29,8 +29,8 @@ router.post('/', async function(req, res) {
         }
 
         if (!user) {
-            return res.status(401).json({ 
-                success: false, 
+            return res.status(401).json({
+                success: false,
                 message: 'Credenziali non valide' // ← Messaggio generico per sicurezza
             });
         }
@@ -47,13 +47,13 @@ router.post('/', async function(req, res) {
     console.log('========================');
 }
 
-        
+
 // 1. Prima controlla che la password esista nel database
 if (!user.password) {
     console.error(`Utente ${user.email} non ha una password salvata nel database`);
-    return res.status(500).json({ 
-        success: false, 
-        message: 'Errore di configurazione account. Contatta il supporto.' 
+    return res.status(500).json({
+        success: false,
+        message: 'Errore di configurazione account. Contatta il supporto.'
     });
 }
 
@@ -62,9 +62,9 @@ const isPasswordValid = await bcrypt.compare(password, user.password);
 
 if (!isPasswordValid) {
     // Questa è una password SBAGLIATA, non un errore di sistema
-    return res.status(401).json({ 
-        success: false, 
-        message: 'Credenziali non valide' 
+    return res.status(401).json({
+        success: false,
+        message: 'Credenziali non valide'
     });
 }
 
@@ -94,9 +94,9 @@ if (!isPasswordValid) {
 
     } catch(err) {
         console.error('Errore durante l\'autenticazione:', err);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Errore interno del server' 
+        res.status(500).json({
+            success: false,
+            message: 'Errore interno del server'
         });
     }
 });
