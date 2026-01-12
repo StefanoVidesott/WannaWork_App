@@ -6,7 +6,7 @@ const applicationSchema = new mongoose.Schema({
         required: true,
         ref: 'Student'
     },
-    student: {
+    offer: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
         ref: 'Offer'

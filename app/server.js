@@ -26,7 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 
 // Load OpenAPI (Swagger) document
-const swaggerDocument = yaml.load(readFileSync(Path.join(__dirname, '..', 'oas3.yaml'), 'utf8'));
+const swaggerDocument = yaml.load(readFileSync(Path.join(__dirname, '..', 'docs', 'oas3.yaml'), 'utf8'));
 
 // Configuring application
 dotenv.config();

@@ -1,6 +1,6 @@
-node_modules/
-tests/
-
-docker-compose.yaml
 package-lock.json
+node_modules/
 .env
+
+tests/
+docker-compose.yaml
