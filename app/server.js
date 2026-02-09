@@ -22,15 +22,19 @@ import tokenChecker from './middleware/tokenVerify.js';
 
 
 // Determine __dirname in ES module scope
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = Path.dirname(__filename);
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirPath = Path.dirname(currentFilePath);
 
 // Load OpenAPI (Swagger) document
-const swaggerDocument = yaml.load(readFileSync(Path.join(__dirname, '..', 'docs', 'oas3.yaml'), 'utf8'));
+const swaggerDocument = yaml.load(readFileSync(Path.join(currentDirPath, '..', 'docs', 'oas3.yaml'), 'utf8'));
 
 // Configuring application
 dotenv.config();
-connectDB();
+
+if (process.env.NODE_ENV !== 'test') {
+    connectDB();
+}
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
@@ -52,12 +56,12 @@ app.use('/api/v1/verify-email', verifyEmail);
 
 // Health check
 app.get('/api/v1/health', (req, res) => {
-      res.json({ status: 'OK', message: 'WannaWork API is running' });
+    res.json({ status: 'OK', message: 'WannaWork API is running' });
 });
 
 // 404 handler
 app.use((req, res) => {
-      res.status(404).json({ error: 'Endpoint non trovato' });
+    res.status(404).json({ error: 'Endpoint non trovato' });
 });
 
 // Error handler
@@ -67,7 +71,12 @@ app.use((err, req, res, next) => {
 });
 
 // Listener
-app.listen(PORT, () => {
-    console.log(`🚀 WannaWork API in esecuzione su porta ${PORT}`);
-    console.log(`📍 URL locale: http://localhost:${PORT}/api/v1`);
-});
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => {
+        console.log(`🚀 WannaWork API in esecuzione su porta ${PORT}`);
+        console.log(`📍 URL locale: http://localhost:${PORT}/api/v1`);
+    });
+}
+
+// for the tests
+export default app;

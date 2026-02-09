@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
-router.post('/', async function(req, res) {
+router.post('/', async function (req, res) {
     try {
         // 1. Validazione input
         const { email, password } = req.body;
@@ -31,42 +31,41 @@ router.post('/', async function(req, res) {
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: 'Credenziali non valide' // ← Messaggio generico per sicurezza
+                message: 'Credenziali non valide' // Messaggio generico per sicurezza
             });
         }
 
-        if (user) {
-    // 🔍 DEBUG: Stampa TUTTO l'oggetto
-    console.log('===== DEBUG UTENTE =====');
-    console.log('Email:', user.email);
-    console.log('ID:', user._id);
-   // console.log('Tutte le chiavi:', Object.keys(user.toObject()));
-    console.log('Oggetto completo:', JSON.stringify(user, null, 2));
-    console.log('user.password:', user.password);
-   // console.log('user.passwordHash:', user.passwordHash);
-    console.log('========================');
-}
+        // if (user) {
+        //     console.log('===== DEBUG UTENTE =====');
+        //     console.log('Email:', user.email);
+        //     console.log('ID:', user._id);
+        //     // console.log('Tutte le chiavi:', Object.keys(user.toObject()));
+        //     console.log('Oggetto completo:', JSON.stringify(user, null, 2));
+        //     console.log('user.password:', user.password);
+        //     // console.log('user.passwordHash:', user.passwordHash);
+        //     console.log('========================');
+        // }
 
 
-// 1. Prima controlla che la password esista nel database
-if (!user.password) {
-    console.error(`Utente ${user.email} non ha una password salvata nel database`);
-    return res.status(500).json({
-        success: false,
-        message: 'Errore di configurazione account. Contatta il supporto.'
-    });
-}
+        // 1. Prima controlla che la password esista nel database
+        if (!user.password) {
+            console.error(`Utente ${user.email} non ha una password salvata nel database`);
+            return res.status(500).json({
+                success: false,
+                message: 'Errore di configurazione account. Contatta il supporto.'
+            });
+        }
 
-// 2. POI confronta la password inserita con quella hashata
-const isPasswordValid = await bcrypt.compare(password, user.password);
+        // 2. POI confronta la password inserita con quella hashata
+        const isPasswordValid = await bcrypt.compare(password, user.password);
 
-if (!isPasswordValid) {
-    // Questa è una password SBAGLIATA, non un errore di sistema
-    return res.status(401).json({
-        success: false,
-        message: 'Credenziali non valide'
-    });
-}
+        if (!isPasswordValid) {
+            // Questa è una password SBAGLIATA, non un errore di sistema
+            return res.status(401).json({
+                success: false,
+                message: 'Credenziali non valide'
+            });
+        }
 
         // 4. Generazione token
         const payload = {
@@ -92,7 +91,7 @@ if (!isPasswordValid) {
             self: `api/v1/${user._id}`
         });
 
-    } catch(err) {
+    } catch (err) {
         console.error('Errore durante l\'autenticazione:', err);
         res.status(500).json({
             success: false,

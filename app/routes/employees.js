@@ -40,7 +40,7 @@ router.post('/registration', validateEmployerRegistration, async (req, res) => {
         await newEmployer.save();
 
         const emailToken = jwt.sign(
-            { id: newStudent._id },
+            { id: newEmployer._id },
             process.env.EMAIL_SECRET,
             { expiresIn: '24h' }
         );
