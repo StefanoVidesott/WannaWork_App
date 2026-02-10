@@ -23,8 +23,14 @@ const availabilityProfileSchema = new mongoose.Schema({
         required: false
     },
     availability: {
-        type: Date,
-        required: false
+        dataInizio: {
+            type: Date,
+            required: true
+        },
+        dataFine: {
+            type: Date,
+            required: true
+        }
     },
     cvFile: {
         filename: { type: String },
@@ -33,6 +39,7 @@ const availabilityProfileSchema = new mongoose.Schema({
         size: { type: Number },
         path: { type: String },
        // uploadedAt: { type: Date, default: Date.now }
+       
     }
 }, { timestamps: true });
 
