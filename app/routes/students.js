@@ -8,14 +8,11 @@ import { sendVerificationEmail } from '../utils/emailService.js';
 
 const router = express.Router();
 
-// Mancano i logging
-
 // POST /api/v1/students/registration
 router.post('/registration', validateStudentRegistration, async (req, res) => {
 	try {
 		const { name, surname, email, education, educationYear, password } = req.body;
 
-		// 1. Verificare se l'email è già registrata
 		const existingStudent = await Student.findOne({
 			email: email.toLowerCase(),
 		});
@@ -50,7 +47,6 @@ router.post('/registration', validateStudentRegistration, async (req, res) => {
             { expiresIn: '24h' }
         );
 
-        // Invio mail (non blocchiamo la risposta se la mail fallisce, ma logghiamo l'errore)
         try {
             await sendVerificationEmail(newStudent.email, emailToken);
         } catch (emailError) {
@@ -67,7 +63,6 @@ router.post('/registration', validateStudentRegistration, async (req, res) => {
 	catch (error) {
 		console.error('Errore durante la registrazione:', error);
 
-		// Gestione errori Mongoose (per debug più chiaro)
 		if (error.name === 'ValidationError') {
 			 return res.status(400).json({ success: false, message: 'Dati non validi', error: error.message });
 		}

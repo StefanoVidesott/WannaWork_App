@@ -26,13 +26,10 @@ describe('POST /api/v1/students/registration', () => {
     });
 
     test('Dovrebbe registrare uno studente con successo (201)', async () => {
-        // 1. Studente non esiste ancora
         Student.findOne.mockResolvedValue(null);
 
-        // 2. L'Education (Università) esiste
         Education.findById.mockResolvedValue({ _id: validPayload.education, name: 'Unitn' });
 
-        // 3. Mock del salvataggio (Student è un costruttore)
         Student.mockImplementation(() => ({
             save: jest.fn().mockResolvedValue({
                 _id: 'new_student_id',
@@ -41,7 +38,6 @@ describe('POST /api/v1/students/registration', () => {
             email: validPayload.email
         }));
 
-        // 4. Mock invio email
         sendVerificationEmail.mockResolvedValue(true);
 
         const res = await request(app)
@@ -54,7 +50,6 @@ describe('POST /api/v1/students/registration', () => {
     });
 
     test('Dovrebbe fallire se l\'email è già registrata (409)', async () => {
-        // Simuliamo che lo studente esista già
         Student.findOne.mockResolvedValue({ email: validPayload.email });
 
         const res = await request(app)
@@ -67,7 +62,6 @@ describe('POST /api/v1/students/registration', () => {
 
     test('Dovrebbe fallire se l\'istituto (Education) non esiste (400)', async () => {
         Student.findOne.mockResolvedValue(null);
-        // Simuliamo Education non trovata
         Education.findById.mockResolvedValue(null);
 
         const res = await request(app)

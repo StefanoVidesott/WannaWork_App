@@ -7,8 +7,6 @@ import { sendVerificationEmail } from '../utils/emailService.js';
 
 const router = express.Router();
 
-// Mancano la conferma di indirizzo email e i logging
-
 // POST /api/v1/employees/registration
 router.post('/registration', validateEmployerRegistration, async (req, res) => {
     try {
@@ -62,7 +60,6 @@ router.post('/registration', validateEmployerRegistration, async (req, res) => {
     catch (error) {
         console.error('Errore durante la registrazione:', error);
 
-        // Gestione errori Mongoose (per debug più chiaro)
         if (error.name === 'ValidationError') {
              return res.status(400).json({ success: false, message: 'Dati non validi', error: error.message });
         }

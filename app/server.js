@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import cors from 'cors';
 
 import yaml from 'js-yaml';
 import Path from 'path';
@@ -20,7 +21,6 @@ import verifyEmail from './routes/verifyEmail.js';
 // Import middleware
 import tokenChecker from './middleware/tokenVerify.js';
 
-
 // Determine __dirname in ES module scope
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirPath = Path.dirname(currentFilePath);
@@ -37,6 +37,13 @@ if (process.env.NODE_ENV !== 'test') {
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+app.use(cors({
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+}));
 
 // Serve openAPI
 app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

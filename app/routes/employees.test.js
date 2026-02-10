@@ -23,10 +23,8 @@ describe('POST /api/v1/employees/registration', () => {
     });
 
     test('Dovrebbe registrare un\'azienda con successo (201)', async () => {
-        // 1. Nessun duplicato trovato
         Employee.findOne.mockResolvedValue(null);
 
-        // 2. Mock del save
         Employee.mockImplementation(() => ({
             save: jest.fn().mockResolvedValue({ _id: 'emp_123', email: validPayload.email }),
             email: validPayload.email
@@ -41,7 +39,6 @@ describe('POST /api/v1/employees/registration', () => {
     });
 
     test('Dovrebbe fallire se l\'azienda esiste già (409)', async () => {
-        // Simuliamo azienda esistente
         Employee.findOne.mockResolvedValue({
             companyName: validPayload.companyName,
             email: validPayload.email

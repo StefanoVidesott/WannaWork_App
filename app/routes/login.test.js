@@ -13,7 +13,6 @@ jest.mock('jsonwebtoken');
 describe('POST /api/v1/login', () => {
     const loginData = { email: 'test@user.com', password: 'password123' };
 
-    // Helper per mockare la catena findOne().select().exec()
     const mockFindOneChain = (result) => {
         return {
             select: jest.fn().mockReturnValue({
@@ -35,12 +34,9 @@ describe('POST /api/v1/login', () => {
             toObject: () => ({})
         };
 
-        // Studente trovato
         Student.findOne.mockReturnValue(mockFindOneChain(mockStudent));
-        // Employee non chiamato (o ritorna null se chiamato)
         Employee.findOne.mockReturnValue(mockFindOneChain(null));
 
-        // Password corretta
         bcrypt.compare.mockResolvedValue(true);
 
         const res = await request(app).post('/api/v1/login').send(loginData);
@@ -58,9 +54,7 @@ describe('POST /api/v1/login', () => {
             toObject: () => ({})
         };
 
-        // Studente NON trovato
         Student.findOne.mockReturnValue(mockFindOneChain(null));
-        // Employee trovato
         Employee.findOne.mockReturnValue(mockFindOneChain(mockEmployee));
 
         bcrypt.compare.mockResolvedValue(true);
@@ -89,7 +83,6 @@ describe('POST /api/v1/login', () => {
         };
 
         Student.findOne.mockReturnValue(mockFindOneChain(mockUser));
-        // Password non coincide
         bcrypt.compare.mockResolvedValue(false);
 
         const res = await request(app).post('/api/v1/login').send(loginData);
