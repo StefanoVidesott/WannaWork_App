@@ -1,32 +1,42 @@
 import jwt from 'jsonwebtoken';
 
-const tokenChecker = function(req, res, next) {
+const tokenChecker = (req, res, next) => {
+    // 1. Cerca il token
+    let token = req.body.token || req.query.token || req.headers['x-access-token'];
 
-    // check header or url parameters or post parameters for token
-    var token = req.query.token || req.headers['x-access-token'] || req.headers['authorization']?.split(' ')[1];
-
-    // if there is no token
-    if (!token) {
-        return res.status(401).send({
-            success: false,
-            message: 'No token provided.'
-        });
+    // 2. Gestione Header Authorization
+    if (!token && req.headers['authorization']) {
+        const authHeader = req.headers['authorization'];
+        if (authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        } else {
+            token = authHeader;
+        }
     }
 
-    // decode token, verifies secret and checks exp
-    jwt.verify(token, process.env.SUPER_SECRET, function(err, decoded) {
+    // 3. Se non c'è token
+    if (!token) {
+        return res.status(401).json({ success: false, message: 'Token mancante.' });
+    }
+
+    // 4. Verifica e Assegnazione
+    const secret = process.env.JWT_SECRET || process.env.SUPER_SECRET;
+    
+    jwt.verify(token, secret, (err, decoded) => {
         if (err) {
-            return res.status(403).send({
-                success: false,
-                message: 'Failed to authenticate token.'
-            });
+            return res.status(403).json({ success: false, message: 'Token scaduto o non valido.' });
         } else {
-            // if everything is good, save to request for use in other routes
-            req.loggedUser = decoded;
+            // --- CORREZIONE QUI ---
+            // Prima stavi probabilmente assegnando req.headers o altro.
+            // Ora assegniamo ESPLICITAMENTE il payload decodificato.
+            req.user = decoded; 
+            
+            // Log di verifica: Deve stampare l'ID (es. 6946...)
+            console.log("🔓 TOKEN APERTO. ID Trovato:", req.user.id);
+            
             next();
         }
     });
-
 };
 
 export default tokenChecker;

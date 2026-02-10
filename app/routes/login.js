@@ -65,6 +65,8 @@ router.post('/', async function (req, res) {
             }
         });
 
+        console.log("token generato:", token);
+
     } catch(err) {
         console.error('Login error:', err);
         res.status(500).json({ success: false, message: 'Errore interno del server' });
