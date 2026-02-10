@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
-router.post('/', async function(req, res) {
+router.post('/accedi', async function(req, res) {
     try {
         // 1. Validazione input
         const { email, password } = req.body;
@@ -31,7 +31,7 @@ router.post('/', async function(req, res) {
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: 'Credenziali non valide' // ← Messaggio generico per sicurezza
+                message: 'Credenziali non valide' 
             });
         }
 
@@ -91,6 +91,8 @@ if (!isPasswordValid) {
             userType: userType,
             self: `api/v1/${user._id}`
         });
+
+        console.log("token generato:", token);
 
     } catch(err) {
         console.error('Errore durante l\'autenticazione:', err);
