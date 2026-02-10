@@ -11,7 +11,6 @@ const skillSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Nome della skill è obbligatorio'],
         trim: true,
-        unique: true
     },
     description: {
         type: String,
