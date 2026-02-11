@@ -17,11 +17,8 @@ import login from './routes/login.js';
 import educationsRouter from './routes/educations.js';
 import verifyEmail from './routes/verifyEmail.js';
 import AvailabilityProfileRouter from './routes/AvailabilityProfiles.js';
+import offersRouter from './routes/offers.js';
 
-import tokenChecker from './middleware/tokenChecker.js';
-import { authorize } from './middleware/roleCheck.js';
-
-// Determine __dirname in ES module scope
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirPath = Path.dirname(currentFilePath);
 
@@ -60,6 +57,7 @@ app.use('/api/v1/skills', skillsRouter);
 app.use('/api/v1/educations', educationsRouter);
 app.use('/api/v1/verify-email', verifyEmail);
 app.use('/api/v1/availabilityProfile', AvailabilityProfileRouter);
+app.use('/api/v1/offers', offersRouter);
 
 // Health check
 app.get('/api/v1/health', (req, res) => {
