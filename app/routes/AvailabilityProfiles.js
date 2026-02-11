@@ -2,8 +2,7 @@ import express from 'express';
 import ValidationAvailabilityProfile from '../middleware/ValidationAvailabilityProfile.js';
 import tokenChecker from '../middleware/tokenVerify.js';
 import AvailabilityProfile from '../models/AvailabilityProfile.js';
-// import fs from 'fs'; // Per eliminare i file
-import bcrypt from 'bcryptjs'; 
+import bcrypt from 'bcryptjs';
 import Student from '../models/Student.js';
 import mongoose from 'mongoose';
 
@@ -12,7 +11,7 @@ const router = express.Router();
 router.post('/create', tokenChecker, ValidationAvailabilityProfile, async (req, res) => {
     try {
         // Se il middleware funziona, qui vedrai l'ID stampato
-        console.log("👤 ROUTE VEDE USER:", req.user); 
+        console.log("👤 ROUTE VEDE USER:", req.user);
 
         if (!req.user || !req.user.id) {
             return res.status(401).json({ success: false, message: 'Autenticazione fallita: ID utente non trovato.' });
@@ -27,16 +26,16 @@ router.post('/create', tokenChecker, ValidationAvailabilityProfile, async (req, 
         }
 
         // Estrazione dati (Raw JSON)
-        const { telefono, skills, esperienza, ore, Availability } = req.body;
-            
+        const { phone, skills, experience, workHours, availability } = req.body;
+
         // Creazione
         const newProfile = new AvailabilityProfile({
-            student: userId, // Preso dal token
-            phone: telefono,
+            student: userId,
+            phone: phone,
             skills: skills,
-            experience: esperienza,
-            workHours: ore,
-            availability: Availability 
+            experience: experience,
+            workHours: workHours,
+            availability: availability
         });
 
         await newProfile.save();
@@ -53,12 +52,40 @@ router.post('/create', tokenChecker, ValidationAvailabilityProfile, async (req, 
     }
 });
 
-// upload.single('file')
+// GET /api/v1/availabilityProfile/me
+router.get('/me', tokenChecker, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const profile = await AvailabilityProfile.findOne({ student: userId })
+            .populate('skills', 'name')
+            .exec();
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Profilo non trovato per questo studente.'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            profile: profile
+        });
+
+    } catch (err) {
+        console.error('❌ Errore recupero profilo personale:', err);
+        return res.status(500).json({
+            success: false,
+            message: 'Errore interno del server'
+        });
+    }
+});
 
 router.put('/:id', tokenChecker, ValidationAvailabilityProfile, async (req, res) => {
     try {
         const profileId = req.params.id;
-        const userId = req.user.id; 
+        const userId = req.user.id;
 
         // 1. Cerca profilo
         const profile = await AvailabilityProfile.findById(profileId);
@@ -70,18 +97,18 @@ router.put('/:id', tokenChecker, ValidationAvailabilityProfile, async (req, res)
         }
 
         // 3. Estrai dati (Il validatore ha già controllato che siano ok se presenti)
-        let { telefono, skills, esperienza, ore, Availability } = req.body;
+        let { phone, skills, experience, workHours, availability } = req.body;
 
         // Parsing manuale (se usi form-data e il validatore non ha modificato req.body direttamente)
-        if (typeof skills === 'string') try { skills = JSON.parse(skills); } catch(e) {}
-        if (typeof Availability === 'string') try { Availability = JSON.parse(Availability); } catch(e) {}
+        if (typeof skills === 'string') try { skills = JSON.parse(skills); } catch (e) { }
+        if (typeof availability === 'string') try { availability = JSON.parse(availability); } catch (e) { }
 
         // 4. Aggiorna SOLO se i campi sono presenti (PATCH logic)
-        if (telefono) profile.phone = telefono;
+        if (phone) profile.phone = phone;
         if (skills) profile.skills = skills;
-        if (esperienza) profile.experience = esperienza;
-        if (ore) profile.workHours = ore;
-        if (Availability) profile.availability = Availability;
+        if (experience) profile.experience = experience;
+        if (workHours) profile.workHours = workHours;
+        if (availability) profile.availability = availability;
 
         // Gestione File
         if (req.file) {
@@ -111,10 +138,10 @@ router.put('/:id', tokenChecker, ValidationAvailabilityProfile, async (req, res)
 // --- ROTTA DELETE: ELIMINAZIONE PROFILO ---
 // Richiede: Token (Auth), Password (Body), 
 router.delete('/:id', tokenChecker, async (req, res) => {
-    
+
     // Avviamo una sessione per la transazione atomica
     const session = await mongoose.startSession();
-    
+
     try {
         const profileId = req.params.id;
         const userId = req.user.id;
@@ -139,7 +166,7 @@ router.delete('/:id', tokenChecker, async (req, res) => {
         // 3. VERIFICA IDENTITÀ (PASSWORD CHECK)
         // Recuperiamo l'utente (Student) con la password (che solitamente è esclusa dalle query standard con select: false)
         const user = await Student.findById(userId).select('+password');
-        
+
         if (!user || !user.password) {
             return res.status(404).json({ success: false, message: 'Utente non trovato o dati corrotti.' });
         }
@@ -205,7 +232,7 @@ router.delete('/:id', tokenChecker, async (req, res) => {
             await session.abortTransaction();
         }
         session.endSession();
-        
+
         console.error('❌ Errore eliminazione profilo:', err);
         return res.status(500).json({ success: false, message: 'Errore server durante l\'eliminazione: ' + err.message });
     }

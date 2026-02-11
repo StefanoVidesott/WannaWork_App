@@ -20,7 +20,8 @@ const availabilityProfileSchema = new mongoose.Schema({
     }],
     workHours: {
         type: Number,
-        required: false
+        required: false,
+        default: 0
     },
     availability: {
         dataInizio: {
@@ -32,15 +33,15 @@ const availabilityProfileSchema = new mongoose.Schema({
             required: true
         }
     },
-    cvFile: {
-        filename: { type: String },
-        // originalName: { type: String },
-        mimeType: { type: String, default: 'application/pdf' },
-        size: { type: Number },
-        path: { type: String },
-       // uploadedAt: { type: Date, default: Date.now }
-       
-    }
+    // cvFile: {
+    //     filename: { type: String },
+    //     // originalName: { type: String },
+    //     mimeType: { type: String, default: 'application/pdf' },
+    //     size: { type: Number },
+    //     path: { type: String },
+    //     // uploadedAt: { type: Date, default: Date.now }
+
+    // }
 }, { timestamps: true });
 
 export default mongoose.model('AvailabilityProfile', availabilityProfileSchema);

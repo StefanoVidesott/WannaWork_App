@@ -16,10 +16,10 @@ import employeesRouter from './routes/employees.js';
 import login from './routes/login.js';
 import educationsRouter from './routes/educations.js';
 import verifyEmail from './routes/verifyEmail.js';
-// import AvailabilityProfileRouter from './routes/AvailabilityProfiles.js';
+import AvailabilityProfileRouter from './routes/AvailabilityProfiles.js';
 
-// Import middleware
-import tokenChecker from './middleware/tokenVerify.js';
+import tokenChecker from './middleware/tokenChecker.js';
+import { authorize } from './middleware/roleCheck.js';
 
 // Determine __dirname in ES module scope
 const currentFilePath = fileURLToPath(import.meta.url);
@@ -38,6 +38,10 @@ if (process.env.NODE_ENV !== 'test') {
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Middleware
+app.use(express.json());
+
+// CORS
 app.use(cors({
     origin: 'http://localhost:5173',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -48,10 +52,6 @@ app.use(cors({
 // Serve openAPI
 app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// Middleware
-app.use(express.json());
-// app.use('/api/v1/availabilityProfile/', tokenChecker);
-
 // Routes
 app.use('/api/v1/students', studentsRouter);
 app.use('/api/v1/employees', employeesRouter);
@@ -59,7 +59,7 @@ app.use('/api/v1/login', login);
 app.use('/api/v1/skills', skillsRouter);
 app.use('/api/v1/educations', educationsRouter);
 app.use('/api/v1/verify-email', verifyEmail);
-// app.use('/ap1/v1/availabilityProfile', AvailabilityProfileRouter);
+app.use('/api/v1/availabilityProfile', AvailabilityProfileRouter);
 
 // Health check
 app.get('/api/v1/health', (req, res) => {
