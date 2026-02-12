@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Offer from '../models/Offer.js';
 import tokenChecker from '../middleware/tokenVerify.js';
 import validateOffer from '../middleware/ValidateOffer.js';
@@ -55,7 +56,7 @@ router.get('/:id', tokenChecker, async (req, res) => {
         const { id } = req.params;
 
         // Recuperiamo l'offerta e popoliamo i dati del datore (opzionale)
-        const offer = await Offer.findById(id).populate('employer', 'companyName email');
+        const offer = await Offer.findById(id).populate('employer', 'companyName email location logo description');
 
         if (!offer) {
             return res.status(404).json({
@@ -123,5 +124,49 @@ router.put('/:id', tokenChecker, validateOffer, async (req, res) => {
     }
 });
 
+// DELETE /api/v1/offers/:id
+router.delete('/:id', tokenChecker, async (req, res) => {
+    const session = await mongoose.startSession();
+    try {
+        const { id } = req.params;
+        const { reason, otherReason } = req.body;
+        const userId = req.user.id;
+
+        if (!reason) {
+            return res.status(400).json({ success: false, message: 'Motivo eliminazione obbligatorio' });
+        }
+
+        session.startTransaction();
+
+        // 1. Verifica proprietà
+        const offer = await Offer.findById(id).session(session);
+        if (!offer) {
+            await session.abortTransaction();
+            return res.status(404).json({ success: false, message: 'Offerta non trovata' });
+        }
+
+        if (offer.employer.toString() !== userId) {
+            await session.abortTransaction();
+            return res.status(403).json({ success: false, message: 'Non autorizzato' });
+        }
+
+        // 2. Task 2: (Simulazione) Qui andrebbe l'aggiornamento delle candidature associate
+        // await Application.updateMany({ offer: id }, { status: 'offer_deleted' }).session(session);
+
+        // 3. Eliminazione fisica
+        await Offer.deleteOne({ _id: id }).session(session);
+
+        await session.commitTransaction();
+        session.endSession();
+
+        console.log(`🗑️ Offerta ${id} eliminata. Motivo: ${reason}`);
+
+        res.json({ success: true, message: 'Offerta eliminata con successo' });
+    } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
 
 export default router;
