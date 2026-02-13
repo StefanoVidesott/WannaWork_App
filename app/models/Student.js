@@ -34,6 +34,10 @@ const studentSchema = new mongoose.Schema({
         minlength: [12, 'Password deve essere almeno 12 caratteri'],
         select: false
     },
+    privacy: {
+        type: Boolean,
+        default: false
+    },
     isVerified: {
         type: Boolean,
         default: false

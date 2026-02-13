@@ -9,7 +9,7 @@ const skillSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        required: [true, 'Nome della skill è obbligatorio'],
+        required: [true, 'Type della skill è obbligatorio'],
         trim: true,
     },
     description: {

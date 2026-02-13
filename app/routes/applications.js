@@ -1,17 +1,96 @@
 import express from 'express';
 import mongoose from 'mongoose';
+
 import Application from '../models/Application.js';
 import Offer from '../models/Offer.js';
-import tokenChecker from '../middleware/tokenVerify.js';
+import AvailabilityProfile from '../models/AvailabilityProfile.js';
+
+import tokenChecker from '../middleware/tokenChecker.js';
 import { authorize } from '../middleware/roleCheck.js';
-import validateApplication from '../middleware/validateApplication.js';
+import { sendNewApplicationNotification, sendApplicationWithdrawnNotification } from '../utils/emailService.js';
 
 const router = express.Router();
 
-// ---------------------------------------------
-// 1. GET /api/v1/applications/check/:offerId
-// Verifica se lo studente ha una candidatura ATTIVA
-// ---------------------------------------------
+// POST /api/v1/applications/apply
+router.post('/apply', tokenChecker, authorize(['Student']), async (req, res) => {
+    const session = await mongoose.startSession();
+
+    let offerDetails = null;
+    let studentProfile = null;
+
+    try {
+        session.startTransaction();
+        const { offerId } = req.body;
+        const studentId = req.user.id;
+
+        studentProfile = await AvailabilityProfile.findOne({
+            student: studentId,
+            status: 'visible'
+        }).session(session).populate('student', 'name surname email');
+
+        if (!studentProfile) {
+            await session.abortTransaction();
+            return res.status(403).json({ success: false, message: 'Devi avere un profilo di disponibilità "visibile" per candidarti.' });
+        }
+
+        offerDetails = await Offer.findById(offerId)
+            .populate('employer', 'email companyName')
+            .session(session);
+
+        if (!offerDetails || offerDetails.status !== 'published') {
+            await session.abortTransaction();
+            return res.status(404).json({ success: false, message: 'Offerta non disponibile' });
+        }
+
+        const existingApp = await Application.findOne({ student: studentId, offer: offerId }).session(session);
+
+        if (existingApp) {
+            if (existingApp.status === 'withdrawn') {
+                existingApp.status = 'pending';
+                existingApp.history.push({ status: 'pending', changedAt: new Date(), note: 'Riattivata' });
+                await existingApp.save({ session });
+                await session.commitTransaction();
+                return res.status(200).json({ success: true, message: 'Candidatura riattivata!' });
+            } else {
+                await session.abortTransaction();
+                return res.status(409).json({ success: false, message: 'Ti sei già candidato.' });
+            }
+        }
+
+        const newApplication = new Application({
+            student: studentId,
+            offer: offerId,
+            employer: offerDetails.employer._id,
+            status: 'pending',
+            history: [{ status: 'pending', changedAt: new Date() }]
+        });
+
+        await newApplication.save({ session });
+        await session.commitTransaction();
+
+        session.endSession();
+
+        console.log(`✅ Candidatura inviata: ${studentId} -> ${offerId}`);
+
+        if (offerDetails.employer && offerDetails.employer.email) {
+            sendNewApplicationNotification(
+                offerDetails.employer.email,
+                offerDetails.position,
+                `${studentProfile.student.name} ${studentProfile.student.surname}`
+            ).catch(err => console.error("Errore invio email datore:", err));
+        }
+
+        res.status(201).json({ success: true, message: 'Candidatura inviata con successo!', data: newApplication });
+
+    } catch (err) {
+        if (session.inTransaction()) await session.abortTransaction();
+        session.endSession();
+        console.error('Errore candidatura:', err);
+        res.status(500).json({ success: false, message: 'Errore interno del server' });
+    }
+});
+
+// GET /api/v1/applications/check/:offerId
 router.get('/check/:offerId', tokenChecker, authorize(['Student']), async (req, res) => {
     try {
         const { offerId } = req.params;
@@ -23,9 +102,6 @@ router.get('/check/:offerId', tokenChecker, authorize(['Student']), async (req, 
 
         const existingApp = await Application.findOne({ student: studentId, offer: offerId });
 
-        // MODIFICA QUI:
-        // Consideriamo che l'utente si è "già candidato" SOLO se la candidatura esiste 
-        // E lo status NON è 'withdrawn'. Se è ritirata, permettiamo di riprovare.
         const isActiveApplication = existingApp && existingApp.status !== 'withdrawn';
 
         res.json({
@@ -41,97 +117,7 @@ router.get('/check/:offerId', tokenChecker, authorize(['Student']), async (req, 
     }
 });
 
-// ---------------------------------------------
-// 2. POST /api/v1/applications/apply
-// Crea o Riattiva una candidatura
-// ---------------------------------------------
-router.post('/apply', tokenChecker, authorize(['Student']), validateApplication, async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-        const { offerId, message } = req.body;
-        const studentId = req.user.id;
-
-        // A. Controllo esistenza Offerta
-        const offer = await Offer.findById(offerId).session(session);
-        if (!offer || offer.status !== 'published') {
-            await session.abortTransaction();
-            return res.status(404).json({ success: false, message: 'Offerta non disponibile' });
-        }
-
-        if (offer.expirationDate && new Date(offer.expirationDate) < new Date()) {
-            await session.abortTransaction();
-            return res.status(400).json({ success: false, message: 'Questa offerta è scaduta' });
-        }
-
-        // B. Controllo Candidatura Esistente
-        const existingApp = await Application.findOne({ student: studentId, offer: offerId }).session(session);
-
-        if (existingApp) {
-            // CASO 1: Candidatura esistente ma RITIRATA -> RIATTIVIAMO
-            if (existingApp.status === 'withdrawn') {
-                existingApp.status = 'pending';
-                existingApp.message = message || existingApp.message; // Aggiorna messaggio se fornito
-                // Aggiungiamo alla timeline l'evento di "re-invio"
-                existingApp.history.push({
-                    status: 'pending',
-                    changedAt: new Date(),
-                    note: 'Candidatura reinviata dopo ritiro'
-                });
-
-                await existingApp.save({ session });
-                await session.commitTransaction();
-
-                console.log(`🔄 Candidatura riattivata: Studente ${studentId} -> Offerta ${offerId}`);
-
-                return res.status(200).json({
-                    success: true,
-                    message: 'Candidatura inviata nuovamente con successo!',
-                    data: existingApp
-                });
-            }
-            // CASO 2: Candidatura già attiva -> ERRORE
-            else {
-                await session.abortTransaction();
-                return res.status(409).json({ success: false, message: 'Ti sei già candidato a questa offerta' });
-            }
-        }
-
-        // CASO 3: Nessuna candidatura -> CREIAMO NUOVA
-        const newApplication = new Application({
-            student: studentId,
-            offer: offerId,
-            employer: offer.employer,
-            message: message || '',
-            status: 'pending',
-            history: [{ status: 'pending', changedAt: new Date() }]
-        });
-
-        await newApplication.save({ session });
-        await session.commitTransaction();
-
-        console.log(`✅ Nuova candidatura: Studente ${studentId} -> Offerta ${offerId}`);
-
-        res.status(201).json({
-            success: true,
-            message: 'Candidatura inviata con successo!',
-            data: newApplication
-        });
-
-    } catch (err) {
-        await session.abortTransaction();
-        console.error('Errore candidatura:', err);
-        res.status(500).json({ success: false, message: 'Errore interno del server' });
-    } finally {
-        session.endSession();
-    }
-});
-
-// ---------------------------------------------
-// 3. GET /api/v1/applications/student
-// Recupera storico candidature
-// ---------------------------------------------
+// GET /api/v1/applications/student
 router.get('/student', tokenChecker, authorize(['Student']), async (req, res) => {
     try {
         const { status, sort } = req.query;
@@ -145,7 +131,7 @@ router.get('/student', tokenChecker, authorize(['Student']), async (req, res) =>
             .populate({
                 path: 'offer',
                 select: 'position contractType workLocation salary',
-                populate: { path: 'employer', select: 'companyName logo' }
+                populate: { path: 'employer', select: 'companyName' }
             })
             .sort({ createdAt: sort === 'oldest' ? 1 : -1 });
 
@@ -161,32 +147,23 @@ router.get('/student', tokenChecker, authorize(['Student']), async (req, res) =>
     }
 });
 
-// AGGIUNGI O SOSTITUISCI QUESTA ROTTA in routes/applications.js
-
-// ---------------------------------------------
-// 4. PATCH /api/v1/applications/offer/:offerId/withdraw
-// Ritira candidatura passando l'ID dell'OFFERTA
-// ---------------------------------------------
+// PATCH /api/v1/applications/offer/:offerId/withdraw
 router.patch('/offer/:offerId/withdraw', tokenChecker, authorize(['Student']), async (req, res) => {
     const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
+        session.startTransaction();
         const { offerId } = req.params;
-        const { reason } = req.body;
         const studentId = req.user.id;
 
-        // Cerchiamo la candidatura specifica per questa offerta e questo studente
-        const application = await Application.findOne({
-            offer: offerId,
-            student: studentId
-        }).session(session);
+        const application = await Application.findOne({ offer: offerId, student: studentId })
+            .session(session)
+            .populate('employer', 'email')
+            .populate('offer', 'position')
+            .populate('student', 'name surname');
 
         if (!application) {
             await session.abortTransaction();
-            // Debug log
-            console.log(`Candidatura non trovata per Student: ${studentId} e Offer: ${offerId}`);
-            return res.status(404).json({ success: false, message: 'Nessuna candidatura attiva trovata per questa offerta.' });
+            return res.status(404).json({ success: false, message: 'Nessuna candidatura attiva trovata.' });
         }
 
         if (['accepted', 'rejected'].includes(application.status)) {
@@ -194,31 +171,35 @@ router.patch('/offer/:offerId/withdraw', tokenChecker, authorize(['Student']), a
             return res.status(400).json({ success: false, message: 'Non puoi ritirare una candidatura già valutata.' });
         }
 
-        // Se è già ritirata, restituiamo successo senza fare nulla o errore (dipende dalla UX)
         if (application.status === 'withdrawn') {
             await session.abortTransaction();
-            return res.status(400).json({ success: false, message: 'Candidatura già ritirata.' });
+            return res.status(200).json({ success: true, message: 'Candidatura già ritirata.' });
         }
 
-        // Aggiornamento
         application.status = 'withdrawn';
-        application.history.push({
-            status: 'withdrawn',
-            changedAt: new Date(),
-            note: reason || 'Ritiro volontario'
-        });
+        application.history.push({ status: 'withdrawn', changedAt: new Date(), note: 'Ritiro volontario' });
 
         await application.save({ session });
         await session.commitTransaction();
+        session.endSession();
+
+        if (application.employer && application.employer.email) {
+            const jobTitle = application.offer ? application.offer.position : 'Offerta';
+            const studentName = application.student ? `${application.student.name} ${application.student.surname}` : 'Uno studente';
+
+            sendApplicationWithdrawnNotification(
+                application.employer.email,
+                jobTitle,
+                studentName
+            ).catch(err => console.error("Errore invio email ritiro:", err));
+        }
 
         res.json({ success: true, message: 'Candidatura ritirata con successo' });
 
     } catch (err) {
-        await session.abortTransaction();
-        console.error("Errore Withdraw:", err);
-        res.status(500).json({ success: false, message: 'Errore interno del server' });
-    } finally {
+        if (session.inTransaction()) await session.abortTransaction();
         session.endSession();
+        res.status(500).json({ success: false, message: 'Errore interno del server' });
     }
 });
 

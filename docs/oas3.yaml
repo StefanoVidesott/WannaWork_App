@@ -75,7 +75,7 @@ paths:
                     example: 507f1f77bcf86cd799439011
                   userType:
                     type: string
-                    enum: [Student, Employee]
+                    enum: [Student, Employer]
                     example: Student
                   self:
                     type: string
@@ -393,7 +393,7 @@ components:
         updatedAt:
           type: string
 
-    Employee:
+    Employer:
       type: object
       required:
         - companyName
@@ -531,7 +531,7 @@ components:
           example: 507f1f77bcf86cd799439011
         employee:
           type: string
-          description: Reference to Employee document
+          description: Reference to Employer document
           example: 507f1f77bcf86cd799439011
         position:
           type: string

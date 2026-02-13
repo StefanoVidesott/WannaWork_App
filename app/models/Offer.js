@@ -4,7 +4,7 @@ const offerSchema = new mongoose.Schema({
     employer: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'Employee'
+        ref: 'Employer'
     },
     position: {
         type: String,
@@ -20,30 +20,12 @@ const offerSchema = new mongoose.Schema({
         maxlength: 2000,
         trim: true
     },
-    requirements: [{
-        type: String,
-        trim: true
-    }],
     desiredSkills: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Skill'
+        type: mongoose.Schema.Types.ObjectId, ref: 'Skill'
     }],
     workHours: {
         type: String,
         required: true
-    },
-    salary: {
-        type: String,
-        required: true
-    },
-    contractType: {
-        type: String,
-        enum: ['determinato', 'indeterminato', 'stage', 'altro'],
-        required: true
-    },
-    contractDuration: {
-        type: String,
-        required: false
     },
     workLocation: {
         type: String,
@@ -53,15 +35,24 @@ const offerSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    salary: {
+        type: String,
+        required: false
+    },
+    contractType: {
+        type: String,
+        enum: ['determinato', 'indeterminato', 'stage', 'altro'],
+        required: false
+    },
+    contractDuration: {
+        type: String,
+        required: false
+    },
     status: {
         type: String,
         enum: ['published', 'draft', 'expired'],
         default: 'published'
     },
-    expirationDate: {
-        type: Date,
-        default: () => new Date(+new Date() + 30*24*60*60*1000)
-    }
 }, { timestamps: true });
 
 export default mongoose.model('Offer', offerSchema);

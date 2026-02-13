@@ -11,24 +11,16 @@ const applicationSchema = new mongoose.Schema({
         required: true,
         ref: 'Offer'
     },
-    // Denormalizziamo l'employer per facilitare le query lato azienda
     employer: {
         type: mongoose.Schema.Types.ObjectId,
         required: true,
-        ref: 'Employee'
+        ref: 'Employer'
     },
     status: {
         type: String,
         enum: ['pending', 'reviewed', 'accepted', 'rejected', 'withdrawn'],
         default: 'pending'
     },
-    // Messaggio di presentazione opzionale
-    message: {
-        type: String,
-        maxlength: 500,
-        trim: true
-    },
-    // Per tracciare la timeline (es. inviata -> visualizzata -> valutata)
     history: [{
         status: String,
         changedAt: {
@@ -36,11 +28,10 @@ const applicationSchema = new mongoose.Schema({
             default: Date.now
         }
     }]
-}, { 
-    timestamps: true // Gestisce automaticamente createdAt (data invio) e updatedAt
+}, {
+    timestamps: true
 });
 
-// Indice composto univoco: uno studente non può candidarsi due volte alla stessa offerta
 applicationSchema.index({ student: 1, offer: 1 }, { unique: true });
 
 export default mongoose.model('Application', applicationSchema);

@@ -6,8 +6,6 @@ const router = express.Router();
 // GET /api/v1/educations/
 router.get('/', async (req, res) => {
     try {
-        // Recupera tutti, ordinati alfabeticamente per nome (A-Z)
-        // Selezioniamo solo _id, name e university per mantenere il payload leggero
         const educationList = await Education.find()
             .select('name university')
             .sort({ name: 1 });

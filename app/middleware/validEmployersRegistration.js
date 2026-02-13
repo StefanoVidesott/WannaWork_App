@@ -20,12 +20,11 @@ const isValidPassword = (password) => {
     return password && password.length >= 12;
 };
 
-const validateEmployeeRegistration = (req, res, next) => {
-    const { companyName, email, headquarters, website, password, confermaPassword, consensoPrivacy } = req.body;
+const validateEmployerRegistration = (req, res, next) => {
+    const { companyName, email, headquarters, website, password, confirmPassword, privacy } = req.body;
 
     const errors = [];
 
-    // Campi obbligatori
     if (!companyName || companyName.trim().length === 0) {
         errors.push('Nome azienda è obbligatorio');
     }
@@ -34,26 +33,25 @@ const validateEmployeeRegistration = (req, res, next) => {
         errors.push('Email aziendale non valida');
     }
 
-    // Sito web opzionale ma se presente deve essere valido
     if (website && website.trim().length > 0 && !isValidUrl(website)) {
         errors.push('Sito web non valido. Deve iniziare con http:// o https://');
     }
 
-    // Validazione password
+    if (!headquarters || headquarters.trim().length < 10) {
+        errors.push('La sede principale è obbligatoria e deve contenere almeno 10 caratteri');
+    }
+
     if (!password || !isValidPassword(password)) {
         errors.push('La password deve contenere almeno 12 caratteri');
     }
 
-    /*
-        if (password !== confermaPassword) {
-            errors.push('Le password non coincidono');
-        }
+    if (password !== confirmPassword) {
+        errors.push('Le password non coincidono');
+    }
 
-        if (!consensoPrivacy) {
-            errors.push('Devi accettare la privacy policy');
-        }
-    */
-
+    if (!privacy) {
+        errors.push('Devi accettare la privacy policy');
+    }
 
     if (errors.length > 0) {
         return res.status(400).json({
@@ -65,4 +63,4 @@ const validateEmployeeRegistration = (req, res, next) => {
     next();
 };
 
-export default validateEmployeeRegistration;
+export default validateEmployerRegistration;

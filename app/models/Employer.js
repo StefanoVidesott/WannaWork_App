@@ -27,10 +27,14 @@ const employerSchema = new mongoose.Schema({
         type: String,
         match: [/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/, 'URL non valido']
     },
+    privacy: {
+        type: Boolean,
+        default: false
+    },
     isVerified: {
         type: Boolean,
         default: false
     },
 }, { timestamps: true });
 
-export default mongoose.model('Employee', employerSchema);
+export default mongoose.model('Employer', employerSchema);

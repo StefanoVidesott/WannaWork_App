@@ -6,8 +6,6 @@ const router = express.Router();
 // GET /api/v1/skills/
 router.get('/', async (req, res) => {
     try {
-        // Recupera tutti, ordinati alfabeticamente per nome (A-Z)
-        // Selezioniamo solo _id, name e type per mantenere il payload leggero
         const skillList = await Skill.find()
             .select('name type')
             .sort({ name: 1 });
@@ -17,7 +15,6 @@ router.get('/', async (req, res) => {
             count: skillList.length,
             data: skillList
         });
-
     } catch (error) {
         console.error('Errore recupero Skills:', error);
         return res.status(500).json({

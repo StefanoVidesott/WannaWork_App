@@ -1,22 +1,23 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
-// --- MODELLI ---
 import Student from '../models/Student.js';
 import Education from '../models/Education.js';
-import Offer from '../models/Offer.js'; // <--- FONDAMENTALE: Se manca questo, crasha tutto
+import Application from '../models/Application.js';
+import AvailabilityProfile from '../models/AvailabilityProfile.js';
+import Offer from '../models/Offer.js';
 
-// --- MIDDLEWARE ---
 import validateStudentRegistration from '../middleware/validStudentRegistration.js';
-import tokenChecker from '../middleware/tokenVerify.js';
+import tokenChecker from '../middleware/tokenChecker.js';
 import { sendVerificationEmail } from '../utils/emailService.js';
 
 const router = express.Router();
 
 router.post('/registration', validateStudentRegistration, async (req, res) => {
 	try {
-		const { name, surname, email, education, educationYear, password } = req.body;
+		const { name, surname, email, education, educationYear, password, confirmPassword, privacy } = req.body;
 
 		const existingStudent = await Student.findOne({ email: email.toLowerCase() });
 		if (existingStudent) {
@@ -37,6 +38,7 @@ router.post('/registration', validateStudentRegistration, async (req, res) => {
 			education,
 			educationYear: Number(educationYear),
 			password: hashedPassword,
+			privacy: privacy,
 			isVerified: false
 		});
 
@@ -56,103 +58,55 @@ router.post('/registration', validateStudentRegistration, async (req, res) => {
 	}
 });
 
-router.get('/me', tokenChecker, async (req, res) => {
+// GET /api/v1/students/can-apply/:offerId
+router.get('/can-apply/:offerId', tokenChecker, async (req, res) => {
 	try {
-		const student = await Student.findById(req.user.id).select('-password');
-		if (!student) return res.status(404).json({ success: false, message: 'Studente non trovato' });
-		res.json(student);
-	} catch (err) {
-		res.status(500).json({ success: false, message: 'Errore server' });
-	}
-});
+		const { offerId } = req.params;
+		const studentId = req.user.id;
 
-router.get('/offers', tokenChecker, async (req, res) => {
-	try {
-		// Parametri query
-		const page = parseInt(req.query.page) || 1;
-		const limit = parseInt(req.query.limit) || 12;
-		const sortParam = req.query.sort || 'recent';
-		const skip = (page - 1) * limit;
+		if (!mongoose.Types.ObjectId.isValid(offerId)) {
+			return res.status(400).json({ success: false, message: 'ID offerta non valido' });
+		}
 
-		// --- FILTRI ---
-		// Nota: Per il debug, ho commentato il controllo sulla data. 
-		// Se le tue offerte di prova non hanno una scadenza futura, non si vedrebbero.
-		const query = {
-			status: 'published',
-			// deadline: { $gte: new Date() } // TODO da sistemare secondo modello
-		};
+		const profile = await AvailabilityProfile.findOne({ student: studentId });
 
-		// --- ORDINAMENTO ---
-		let sortQuery = { createdAt: -1 };
-		if (sortParam === 'deadline') sortQuery = { deadline: 1 };
+		if (!profile || profile.status !== 'visible') {
+			return res.status(200).json({
+				canApply: false,
+				reason: 'no profile'
+			});
+		}
 
-		// Conta totale
-		const total = await Offer.countDocuments(query);
+		const existingApplication = await Application.findOne({
+			student: studentId,
+			offer: offerId,
+			status: { $ne: 'withdrawn' }
+		});
 
-		// Esegui Query
-		const offers = await Offer.find(query)
-			.populate('employer', 'companyName location logo')
-			.sort(sortQuery)
-			.skip(skip)
-			.limit(limit);
+		if (existingApplication) {
+			return res.status(200).json({
+				canApply: false,
+				reason: 'already applied'
+			});
+		}
 
-		// console.log(`🔍 Trovate ${offers.length} offerte per lo studente.`);
+		const offer = await Offer.findById(offerId);
 
-		res.json({
-			success: true,
-			data: offers,
-			pagination: {
-				total,
-				page,
-				totalPages: Math.ceil(total / limit)
-			}
+		if (!offer || offer.status !== 'published') {
+			return res.status(200).json({
+				canApply: false,
+				reason: 'offer unavailable'
+			});
+		}
+
+		return res.status(200).json({
+			canApply: true
 		});
 
 	} catch (err) {
-		console.error('❌ Errore GET /offers:', err);
-		res.status(500).json({ success: false, message: 'Errore server nel recupero offerte' });
+		console.error('❌ Errore check can-apply:', err);
+		return res.status(500).json({ success: false, message: 'Errore interno del server' });
 	}
-});
-
-// GET /api/v1/students/offers/:id
-router.get('/offers/:id', tokenChecker, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Validazione formato ID MongoDB
-        if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-            return res.status(400).json({ success: false, message: 'ID offerta non valido' });
-        }
-
-        // Cerchiamo l'offerta con i criteri di visibilità per lo studente
-        // Deve essere: Pubblicata E (Scadenza futura OR nessuna scadenza)
-        const offer = await Offer.findOne({
-            _id: id,
-            status: 'published',
-            // deadline: { $gte: new Date() } // SCOMMENTA in produzione per nascondere le scadute
-        }).populate('employer', 'companyName location logo description sector website size email'); 
-        // Nota: ho aggiunto campi ipotetici (sector, website, size) che potrebbero essere nel model Employee
-
-        if (!offer) {
-            // Se non la troviamo, potrebbe essere scaduta o rimossa
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Offerta non trovata o non più disponibile.' 
-            });
-        }
-
-        // TODO: Qui potresti incrementare un contatore visualizzazioni
-        // await Offer.findByIdAndUpdate(id, { $inc: { views: 1 } });
-
-        res.json({
-            success: true,
-            data: offer
-        });
-
-    } catch (err) {
-        console.error('❌ Errore GET /offers/:id', err);
-        res.status(500).json({ success: false, message: 'Errore interno del server' });
-    }
 });
 
 export default router;

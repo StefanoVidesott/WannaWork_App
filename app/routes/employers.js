@@ -1,37 +1,34 @@
 import express from 'express';
-import Employee from '../models/Employeer.js';
+import Employer from '../models/Employer.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import validateEmployerRegistration from '../middleware/validEmployeeRegistration.js';
+
+import validateEmployerRegistration from '../middleware/validEmployersRegistration.js';
 import { sendVerificationEmail } from '../utils/emailService.js';
 
 const router = express.Router();
 
-// POST /api/v1/employees/registration
+// POST /api/v1/employers/registration
 router.post('/registration', validateEmployerRegistration, async (req, res) => {
     try {
-        const { companyName, email, password, headquarters, website } = req.body;
+        const { companyName, email, headquarters, website, password, privacy } = req.body;
 
-        // 1. Verificare se email + azienda + sede già registrata
-        const existingEmployer = await Employee.findOne({
-            email: email.toLowerCase(),
-            companyName: companyName.trim(),
-            headquarters: headquarters.trim()
-        });
+        const existingEmployer = await Employer.findOne({ email: email.toLowerCase() });
 
         if (existingEmployer) {
-            return res.status(409).json({ success: false, message: 'Questa combinazione di email, nome azienda e sede principale è già registrata' });
+            return res.status(409).json({ success: false, message: 'Questa email aziendale è già registrata' });
         }
 
         const saltrounds = 12;
         const hashedPassword = await bcrypt.hash(password, saltrounds);
 
-        const newEmployer = new Employee({
+        const newEmployer = new Employer({
             companyName: companyName.trim(),
             email: email.toLowerCase(),
             password: hashedPassword,
             headquarters: headquarters.trim(),
             website: website ? website.trim() : undefined,
+            privacy: privacy,
             isVerified: false
         });
 
@@ -43,11 +40,9 @@ router.post('/registration', validateEmployerRegistration, async (req, res) => {
             { expiresIn: '24h' }
         );
 
-        // Invio mail (non blocchiamo la risposta se la mail fallisce, ma logghiamo l'errore)
         try {
             await sendVerificationEmail(newEmployer.email, emailToken);
         } catch (emailError) {
-            // TODO Se la mail fallisce, cancellare l'utente o avvisarlo ?
             console.error('Fallito invio mail:', emailError);
         }
 
