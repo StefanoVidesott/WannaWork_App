@@ -1,143 +1,166 @@
-openapi: 3.0.3
+openapi: 3.0.4
 info:
-  title: WannaWork API
-  description: API for connecting students with employers for job opportunities
-  version: 1.0.0
-  contact:
-    name: WannaWork Support
-
+  version: "1.0"
+  title: "Job Placement API"
+  description: API for managing student and employer authentications and job offers.
+  license:
+    name: MIT
 servers:
+  - url: https://wannawork-app.onrender.com/api/v1/
+    description: Deploy
   - url: http://localhost:8080/api/v1
-    description: Development server
-
+    description: Localhost
 
 paths:
-  /health:
-    get:
-      summary: Health check endpoint
-      description: Returns the current status of the API
-      responses:
-        '200':
-          description: API is running
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: OK
-                  message:
-                    type: string
-                    example: WannaWork API is running
-
-  /login:
+  /auth/login:
     post:
-      summary: User login
-      description: Authenticate a student or employer and receive a JWT token
+      summary: Authenticate a user (Student or Employer)
+      description: >-
+        Authenticates a user using email and password. It automatically detects
+        if the user is a Student or an Employer. Returns a JWT token and basic user info.
+      tags:
+        - Authentication
       requestBody:
+        description: The email and password must be passed in the body.
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - email
-                - password
-              properties:
-                email:
-                  type: string
-                  example: student@example.com
-                password:
-                  type: string
-                  example: securePassword123!
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              studentLogin:
+                value:
+                  email: "mario.rossi@studenti.unitn.it"
+                  password: "SuperSecretPassword123!"
+              employerLogin:
+                value:
+                  email: "hr@techcompany.com"
+                  password: "CompanySecurePassword!"
       responses:
-        '200':
-          description: Authentication successful
+        "200":
+          description: "Authentication successful"
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Autenticazione riuscita
-                  token:
-                    type: string
-                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-                  email:
-                    type: string
-                    example: student@example.com
-                  id:
-                    type: string
-                    example: 507f1f77bcf86cd799439011
-                  userType:
-                    type: string
-                    enum: [Student, Employer]
-                    example: Student
-                  self:
-                    type: string
-                    example: api/v1/507f1f77bcf86cd799439011
-        '400':
-          description: Missing credentials
+                $ref: "#/components/schemas/LoginSuccessResponse"
+        "400":
+          description: "Bad Request. Missing email or password."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Invalid credentials
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Email e password sono richiesti"
+        "401":
+          description: "Unauthorized. Wrong password."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Server error
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Password errata"
+        "403":
+          description: "Forbidden. Account not verified."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Account non verificato. Controlla la tua email"
+        "404":
+          description: "Not Found. Email does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Email non trovata"
+        "500":
+          description: "Internal Server Error."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Errore interno del server"
+
+  /auth/verify-email:
+    get:
+      summary: Verify user email
+      description: >-
+        Verifies the user's email address using the token sent to their inbox during registration.
+      tags:
+        - Authentication
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+          description: "JWT token sent via email for verification"
+      responses:
+        "200":
+          description: "Email successfully verified or already verified."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: true
+                message: "Email verificata con successo!"
+        "400":
+          description: "Bad Request. Missing token or invalid/expired token."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Token mancante"
+        "404":
+          description: "Not Found. User associated with token not found."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Utente non trovato"
 
   /students/registration:
     post:
       summary: Register a new student
-      description: Create a new student account with email verification
+      description: >-
+        Registers a new student in the system, hashes their password, and triggers
+        an asynchronous verification email.
+      tags:
+        - Students
       requestBody:
+        description: Student registration data.
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - name
-                - surname
-                - email
-                - education
-                - educationYear
-                - password
-              properties:
-                name:
-                  type: string
-                  example: Mario
-                surname:
-                  type: string
-                  example: Rossi
-                email:
-                  type: string
-                  example: mario.rossi@example.com
-                education:
-                  type: string
-                  description: MongoDB ObjectId of the education institution
-                  example: 507f1f77bcf86cd799439011
-                educationYear:
-                  type: integer
-                  example: 3
-                password:
-                  type: string
-                  example: SecurePass123!
+              $ref: "#/components/schemas/StudentRegistrationRequest"
+            examples:
+              example1:
+                value:
+                  name: "Mario"
+                  surname: "Rossi"
+                  email: "mario.rossi@studenti.unitn.it"
+                  education: "60d5ecb8b392d7001f8e8e10" # Example ObjectId
+                  educationYear: 2
+                  password: "SuperSecretPassword123!"
+                  confirmPassword: "SuperSecretPassword123!"
+                  privacy: true
       responses:
-        '201':
-          description: Registration successful
+        "201":
+          description: "Student successfully registered"
           content:
             application/json:
               schema:
@@ -148,187 +171,125 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Registrazione avvenuta con successo
+                    example: "Registrazione OK"
                   redirect_url:
                     type: string
-                    example: /login
-        '400':
-          description: Invalid data
+                    example: "/login"
+        "400":
+          description: "Bad Request. Invalid input data or invalid education ID."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Email already registered
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Istituto non valido"
+        "409":
+          description: "Conflict. Email already registered."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Server error
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Email già registrata"
+        "500":
+          description: "Internal Server Error"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/GenericResponse"
 
-  /employees/registration:
-    post:
-      summary: Register a new employer
-      description: Create a new employer account with email verification
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - companyName
-                - email
-                - password
-                - headquarters
-              properties:
-                companyName:
-                  type: string
-                  example: TechCorp S.r.l.
-                email:
-                  type: string
-                  example: hr@techcorp.com
-                password:
-                  type: string
-                  example: SecurePass123!
-                headquarters:
-                  type: string
-                  example: Via Roma 123, 20100 Milano, Italy
-                website:
-                  type: string
-                  example: https://www.techcorp.com
-      responses:
-        '201':
-          description: Registration successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: Registrazione avvenuta con successo
-                  redirect_url:
-                    type: string
-                    example: /login
-        '400':
-          description: Invalid data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Company already registered
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /skills:
+  /students/can-apply/{offerId}:
     get:
-      summary: Get all skills
-      description: Retrieve a list of all available skills sorted alphabetically
-      responses:
-        '200':
-          description: List of skills retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  count:
-                    type: integer
-                    example: 25
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        _id:
-                          type: string
-                          example: 507f1f77bcf86cd799439011
-                        name:
-                          type: string
-                          example: JavaScript
-                        type:
-                          type: string
-                          example: Programming Language
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /educations:
-    get:
-      summary: Get all educational institutions
-      description: Retrieve a list of all educational institutions sorted alphabetically
-      responses:
-        '200':
-          description: List of educational institutions retrieved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  count:
-                    type: integer
-                    example: 15
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        _id:
-                          type: string
-                          example: 507f1f77bcf86cd799439011
-                        name:
-                          type: string
-                          example: Università degli Studi di Trento
-                        university:
-                          type: boolean
-                          example: true
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /verify-email:
-    get:
-      summary: Verify email address
-      description: Verify a user's email address using the token sent via email
+      summary: Check if a student can apply to an offer
+      description: >-
+        Checks various conditions to determine if the currently authenticated student
+        is eligible to apply for a specific job offer.
+      tags:
+        - Students
+      security:
+        - BearerAuth: []
       parameters:
-        - in: query
-          name: token
+        - in: path
+          name: offerId
+          required: true
           schema:
             type: string
-          description: JWT token sent to the user's email
-          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          description: "MongoDB ObjectId of the Offer"
       responses:
-        '200':
-          description: Email verified successfully
+        "200":
+          description: "Check completed successfully. Returns boolean and optionally a reason if false."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanApplyResponse"
+              examples:
+                canApplyTrue:
+                  value:
+                    canApply: true
+                canApplyFalse_NoProfile:
+                  value:
+                    canApply: false
+                    reason: "no profile"
+                canApplyFalse_AlreadyApplied:
+                  value:
+                    canApply: false
+                    reason: "already applied"
+        "400":
+          description: "Bad Request. Invalid offerId format."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "ID offerta non valido"
+        "401":
+          description: "Unauthorized. Missing token."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Token mancante."
+        "403":
+          description: "Forbidden. Invalid or expired token."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Token non valido."
+        "500":
+          description: "Internal Server Error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+
+  /availabilityProfile/create:
+    post:
+      summary: Create an Availability Profile
+      description: >-
+        Creates a new availability profile for a Student. Only students can create this profile,
+        and they can only have one active profile at a time.
+      tags:
+        - Availability Profiles
+      security:
+        - BearerAuth: []
+      requestBody:
+        description: Availability profile details.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvailabilityProfileRequest"
+      responses:
+        "201":
+          description: "Profile created successfully"
           content:
             application/json:
               schema:
@@ -339,23 +300,1055 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: Email verificata con successo!
-        '400':
-          description: Invalid or expired token
+                    example: "Profilo creato con successo"
+                  profile:
+                    $ref: "#/components/schemas/AvailabilityProfile"
+        "400":
+          description: "Bad Request. Profile already exists or validation failed."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: User not found
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Profilo già esistente"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. Only Students can create a profile."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Solo gli studenti possono creare un profilo di disponibilità"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /availabilityProfile/me:
+    get:
+      summary: Get current student's profile
+      description: >-
+        Retrieves the availability profile associated with the currently authenticated student.
+      tags:
+        - Availability Profiles
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: "Profile retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  profile:
+                    $ref: "#/components/schemas/AvailabilityProfile"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          description: "Not Found. The student does not have a profile."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Profilo non trovato per questo studente."
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /availabilityProfile/{id}:
+    get:
+      summary: Get profile by ID
+      description: >-
+        Retrieves a specific availability profile by its ID. Students can only view their own profile.
+      tags:
+        - Availability Profiles
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Profile"
+      responses:
+        "200":
+          description: "Profile retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  profile:
+                    $ref: "#/components/schemas/AvailabilityProfile"
+        "400":
+          description: "Bad Request. Invalid profile ID format."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "ID profilo non valido."
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. Student trying to view another student's profile."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Non sei autorizzato a visualizzare questo profilo."
+        "404":
+          description: "Not Found. Profile does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Profilo non trovato o rimosso dallo studente."
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      summary: Update profile
+      description: >-
+        Updates an existing availability profile. Students can only update their own profile.
+      tags:
+        - Availability Profiles
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Profile"
+      requestBody:
+        description: Profile details to update.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvailabilityProfileRequest"
+      responses:
+        "200":
+          description: "Profile updated successfully or no changes detected"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Modifiche salvate con successo!"
+                  profile:
+                    $ref: "#/components/schemas/AvailabilityProfile"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. User not authorized to edit this profile."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Non autorizzato alla modifica di questo profilo"
+        "404":
+          description: "Not Found. Profile does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Profilo non trovato"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      summary: Delete profile
+      description: >-
+        Deletes a student's availability profile. Requires password confirmation. 
+        Automatically withdraws pending/reviewed applications and notifies employers.
+      tags:
+        - Availability Profiles
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Profile"
+      requestBody:
+        description: Password confirmation required for deletion.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+                  description: "Current student password"
+      responses:
+        "200":
+          description: "Profile successfully deleted"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: true
+                message: "Profilo eliminato definitivamente."
+        "400":
+          description: "Bad Request. Missing password."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Password richiesta per confermare l'eliminazione."
+        "401":
+          description: "Unauthorized. Incorrect password."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Password non corretta. Eliminazione annullata."
+        "403":
+          description: "Forbidden. User not authorized to delete this profile."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Non autorizzato. Puoi eliminare solo il tuo profilo."
+        "404":
+          description: "Not Found. Profile or student does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /employers/registration:
+    post:
+      summary: Register a new employer
+      description: >-
+        Registers a new employer (company) in the system, hashes the password, 
+        and triggers an asynchronous verification email.
+      tags:
+        - Employers
+      requestBody:
+        description: Employer registration data.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployerRegistrationRequest"
+            examples:
+              example1:
+                value:
+                  companyName: "Tech Corp S.p.A."
+                  email: "hr@techcorp.com"
+                  headquarters: "Via Roma 1, Milano"
+                  website: "https://www.techcorp.com"
+                  password: "CompanySecurePassword123!"
+                  privacy: true
+      responses:
+        "201":
+          description: "Employer successfully registered"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Registrazione avvenuta con successo"
+                  redirect_url:
+                    type: string
+                    example: "/login"
+        "400":
+          description: "Bad Request. Invalid input data."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Dati non validi"
+                  error:
+                    type: string
+                    description: "Detailed validation error message"
+        "409":
+          description: "Conflict. Email already registered."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Questa email aziendale è già registrata"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /skills/:
+    get:
+      summary: Get all skills
+      description: >-
+        Retrieves a complete list of all skills available in the database, 
+        sorted alphabetically by name. (Public route)
+      tags:
+        - Skills
+      responses:
+        "200":
+          description: "A list of skills successfully retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillListResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /educations/:
+    get:
+      summary: Get all educations
+      description: >-
+        Retrieves a complete list of all educational institutions (schools/universities) 
+        available in the database, sorted alphabetically by name. (Public route)
+      tags:
+        - Educations
+      responses:
+        "200":
+          description: "A list of educational institutions successfully retrieved"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EducationListResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /offers/create:
+    post:
+      summary: Create a new job offer
+      description: >-
+        Creates a new job offer. Only Employers can perform this action. 
+        The employer's profile must be complete (companyName and headquarters) before publishing.
+      tags:
+        - Offers
+      security:
+        - BearerAuth: []
+      requestBody:
+        description: Job offer details.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfferRequest"
+      responses:
+        "201":
+          description: "Offer successfully published"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Offerta pubblicata con successo!"
+                  data:
+                    $ref: "#/components/schemas/Offer"
+        "400":
+          description: "Bad Request. Validation failed or employer profile incomplete."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Completa il tuo profilo aziendale (Nome e Sede) prima di pubblicare un'offerta."
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. Only Employers can publish offers."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Solo i datori di lavoro possono pubblicare offerte."
+        "404":
+          description: "Not Found. Employer profile not found."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /offers/list:
+    get:
+      summary: List all published offers
+      description: >-
+        Retrieves a paginated list of all currently published job offers. 
+        Supports sorting by recent or oldest.
+      tags:
+        - Offers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: "Page number for pagination"
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: "Number of items per page"
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [recent, oldest]
+            default: "recent"
+          description: "Sorting order"
+      responses:
+        "200":
+          description: "Paginated list of offers retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Offer"
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      totalPages:
+                        type: integer
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /offers/my-offers:
+    get:
+      summary: Get employer's offers
+      description: >-
+        Retrieves all offers created by the currently authenticated Employer. 
+        Includes the count of active applications for each offer.
+      tags:
+        - Offers
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: "Employer offers retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: "#/components/schemas/Offer"
+                        - type: object
+                          properties:
+                            applicationCount:
+                              type: integer
+                              description: "Number of non-withdrawn applications"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. Only Employers can access this route."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Accesso negato."
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /offers/{id}/candidates:
+    get:
+      summary: Get candidates for a specific offer
+      description: >-
+        Retrieves the list of students (candidates) who applied to a specific offer. 
+        Only the Employer who created the offer can view this list.
+      tags:
+        - Offers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Offer"
+      responses:
+        "200":
+          description: "Candidates retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  offer:
+                    type: object
+                    properties:
+                      position:
+                        type: string
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          description: "Application ID"
+                        studentName:
+                          type: string
+                        studentSurname:
+                          type: string
+                        applicationDate:
+                          type: string
+                          format: date-time
+                        profileId:
+                          type: string
+                          description: "Availability Profile ID"
+                        skills:
+                          type: array
+                          items:
+                            $ref: "#/components/schemas/Skill"
+        "400":
+          description: "Bad Request. Invalid offer ID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. User is not an Employer or does not own the offer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "404":
+          description: "Not Found. Offer does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /offers/{id}:
+    get:
+      summary: Get offer by ID
+      description: >-
+        Retrieves a specific published offer by its ID. Populates employer details and desired skills.
+      tags:
+        - Offers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Offer"
+      responses:
+        "200":
+          description: "Offer retrieved successfully"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Offer"
+        "400":
+          description: "Bad Request. Invalid offer ID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          description: "Not Found. Offer does not exist or is not published."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      summary: Update offer
+      description: >-
+        Updates an existing offer. Only the Employer who created the offer can update it. 
+        If the offer is updated, candidates with active applications are notified via email.
+      tags:
+        - Offers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Offer"
+      requestBody:
+        description: Offer details to update.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfferRequest"
+      responses:
+        "200":
+          description: "Offer updated successfully or no changes detected"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  data:
+                    $ref: "#/components/schemas/Offer"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. User does not own the offer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "404":
+          description: "Not Found. Offer does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      summary: Delete offer
+      description: >-
+        Deletes a job offer. Requires a reason for deletion.
+        Automatically rejects all pending/reviewed applications and notifies candidates via email.
+      tags:
+        - Offers
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Offer"
+      requestBody:
+        description: Reason for deleting the offer.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: "Main reason for deletion"
+                otherReason:
+                  type: string
+                  description: "Additional details (optional)"
+      responses:
+        "200":
+          description: "Offer successfully deleted and candidates notified"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: true
+                message: "Offerta eliminata e candidati notificati."
+        "400":
+          description: "Bad Request. Missing deletion reason."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Motivo eliminazione obbligatorio"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. User does not own the offer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "404":
+          description: "Not Found. Offer does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /applications/apply:
+    post:
+      summary: Apply to a job offer
+      description: >-
+        Submits a job application for a specific offer. 
+        Only Students with a 'visible' availability profile can apply. 
+        If a previous application was 'withdrawn', it reactivates it to 'pending'.
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      requestBody:
+        description: The ID of the offer to apply for.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - offerId
+              properties:
+                offerId:
+                  type: string
+                  description: "MongoDB ObjectId of the Offer"
+      responses:
+        "200":
+          description: "Application successfully reactivated (from withdrawn state)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: true
+                message: "Candidatura riattivata!"
+        "201":
+          description: "New application submitted successfully."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Candidatura inviata con successo!"
+                  data:
+                    $ref: "#/components/schemas/Application"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          description: "Forbidden. User is not a Student or profile is not visible."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: 'Devi avere un profilo di disponibilità "visibile" per candidarti.'
+        "404":
+          description: "Not Found. Offer does not exist or is not published."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Offerta non disponibile"
+        "409":
+          description: "Conflict. Application already exists and is active."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Ti sei già candidato."
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /applications/check/{offerId}:
+    get:
+      summary: Check application status for an offer
+      description: >-
+        Checks if the currently authenticated student has an active application 
+        for the specified job offer.
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: offerId
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Offer"
+      responses:
+        "200":
+          description: "Check completed successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationCheckResponse"
+        "400":
+          description: "Bad Request. Invalid offer ID format."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /applications/student:
+    get:
+      summary: Get student's applications
+      description: >-
+        Retrieves a list of all applications submitted by the logged-in student. 
+        Populates offer and employer details. Supports filtering by status and sorting.
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, reviewed, accepted, rejected, withdrawn]
+          description: "Filter applications by status"
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [recent, oldest]
+            default: "recent"
+          description: "Sort applications by creation date"
+      responses:
+        "200":
+          description: "Applications retrieved successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationListResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /applications/offer/{offerId}/withdraw:
+    patch:
+      summary: Withdraw an application
+      description: >-
+        Allows a student to voluntarily withdraw their active application for a specific offer. 
+        Applications that have already been evaluated (accepted/rejected) cannot be withdrawn.
+      tags:
+        - Applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: offerId
+          required: true
+          schema:
+            type: string
+          description: "MongoDB ObjectId of the Offer"
+      responses:
+        "200":
+          description: "Application successfully withdrawn (or was already withdrawn)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: true
+                message: "Candidatura ritirata con successo"
+        "400":
+          description: "Bad Request. Cannot withdraw evaluated applications."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Non puoi ritirare una candidatura già valutata."
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          description: "Not Found. No active application found for this offer."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericResponse"
+              example:
+                success: false
+                message: "Nessuna candidatura attiva trovata."
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
 components:
   schemas:
-    Student:
+    # --- DTO Schemas  ---
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: "Email address of the user"
+        password:
+          type: string
+          description: "Password of the user"
+
+    LoginSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Autenticazione riuscita"
+        token:
+          type: string
+          description: "JWT token valid for 24h"
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              description: "MongoDB ObjectId"
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+              description: "Student name or Employer companyName"
+            userType:
+              type: string
+              enum: [Student, Employer]
+
+    GenericResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    StudentRegistrationRequest:
       type: object
       required:
         - name
@@ -364,66 +1357,501 @@ components:
         - education
         - educationYear
         - password
+        - confirmPassword
       properties:
-        _id:
-          type: string
-          example: 507f1f77bcf86cd799439011
         name:
           type: string
-          example: Mario
         surname:
           type: string
-          example: Rossi
         email:
           type: string
-          example: mario.rossi@example.com
+          format: email
         education:
           type: string
-          description: Reference to Education document
-          example: 507f1f77bcf86cd799439011
+          description: "MongoDB ObjectId of an existing Education entity"
         educationYear:
           type: integer
-          example: 3
+        password:
+          type: string
+          format: password
+          minLength: 12
+        confirmPassword:
+          type: string
+          format: password
+        privacy:
+          type: boolean
+          default: false
+
+    CanApplyResponse:
+      type: object
+      required:
+        - canApply
+      properties:
+        canApply:
+          type: boolean
+          description: "True if the student is eligible to apply, false otherwise."
+        reason:
+          type: string
+          enum: ["no profile", "already applied", "offer unavailable"]
+          description: "Present only if canApply is false. Explains why the student cannot apply."
+
+    AvailabilityProfileRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          example: "+393331234567"
+        skills:
+          type: array
+          items:
+            type: string
+            description: "MongoDB ObjectId of Skill"
+        experience:
+          type: array
+          items:
+            type: string
+          example: ["Sviluppatore Web presso AziendaX", "Stage in React"]
+        workHours:
+          type: integer
+          example: 20
+        availability:
+          type: object
+          properties:
+            dataInizio:
+              type: string
+              format: date-time
+              example: "2023-09-01T00:00:00Z"
+            dataFine:
+              type: string
+              format: date-time
+              example: "2024-02-28T00:00:00Z"
+
+    EmployerRegistrationRequest:
+      type: object
+      required:
+        - companyName
+        - email
+        - headquarters
+        - password
+      properties:
+        companyName:
+          type: string
+          description: "Name of the company"
+        email:
+          type: string
+          format: email
+          description: "Company contact email"
+        headquarters:
+          type: string
+          description: "Main office location"
+        website:
+          type: string
+          format: uri
+          description: "Company website URL (optional)"
+        password:
+          type: string
+          format: password
+          minLength: 12
+        privacy:
+          type: boolean
+          default: false
+
+    SkillListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        count:
+          type: integer
+          description: "Number of skills returned"
+          example: 42
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              _id:
+                type: string
+                description: "MongoDB ObjectId"
+              name:
+                type: string
+              type:
+                type: string
+
+    EducationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        count:
+          type: integer
+          description: "Number of educational institutions returned"
+          example: 15
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              _id:
+                type: string
+                description: "MongoDB ObjectId"
+              name:
+                type: string
+              university:
+                type: boolean
+
+    OfferRequest:
+      type: object
+      required:
+        - position
+        - description
+        - workHours
+        - workLocation
+        - contactMethod
+      properties:
+        position:
+          type: string
+          minLength: 10
+          maxLength: 100
+          example: "Sviluppatore Full Stack Node.js/Vue"
+        description:
+          type: string
+          minLength: 50
+          maxLength: 2000
+          example: "Stiamo cercando uno sviluppatore appassionato per unirsi al nostro team..."
+        desiredSkills:
+          type: array
+          items:
+            type: string
+            description: "MongoDB ObjectId of Skill"
+        workHours:
+          type: string
+          example: "Full-time"
+        salary:
+          type: string
+          example: "25.000€ - 30.000€ RAL"
+        contractType:
+          type: string
+          enum: [determinato, indeterminato, stage, altro]
+        contractDuration:
+          type: string
+          example: "12 mesi"
+        workLocation:
+          type: string
+          example: "Milano, Ibrido"
+        contactMethod:
+          type: string
+          example: "Tramite email o telefono"
+        status:
+          type: string
+          enum: [published, draft, expired]
+          description: "Can be updated via PUT request"
+
+    ApplicationCheckResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        hasApplied:
+          type: boolean
+          description: 'True if there is an active (non-withdrawn) application'
+        applicationDate:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [pending, reviewed, accepted, rejected, withdrawn, null]
+          nullable: true
+
+    ApplicationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        count:
+          type: integer
+        data:
+          type: array
+          items:
+            type: object
+            description: 'Application with populated Offer and Employer details'
+            properties:
+              _id:
+                type: string
+              student:
+                type: string
+              employer:
+                type: string
+              status:
+                type: string
+              history:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                    changedAt:
+                      type: string
+                      format: date-time
+                    note:
+                      type: string
+              createdAt:
+                type: string
+                format: date-time
+              offer:
+                type: object
+                properties:
+                  _id:
+                    type: string
+                  position:
+                    type: string
+                  contractType:
+                    type: string
+                  workLocation:
+                    type: string
+                  salary:
+                    type: string
+                  employer:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      companyName:
+                        type: string
+
+    # --- Database Models Schemas ---
+
+    Student:
+      type: object
+      required:
+        - name
+        - surname
+        - email
+        - education
+        - educationYear
+      properties:
+        id:
+          type: string
+          description: "MongoDB ObjectId"
+        name:
+          type: string
+        surname:
+          type: string
+        email:
+          type: string
+          format: email
+        education:
+          type: string
+          description: "Ref to Education ObjectId"
+        educationYear:
+          type: integer
+        privacy:
+          type: boolean
+          default: false
         isVerified:
           type: boolean
           default: false
-          example: false
         createdAt:
           type: string
+          format: date-time
         updatedAt:
           type: string
+          format: date-time
 
     Employer:
       type: object
       required:
         - companyName
         - email
-        - password
         - headquarters
       properties:
-        _id:
+        id:
           type: string
-          example: 507f1f77bcf86cd799439011
+          description: "MongoDB ObjectId"
         companyName:
           type: string
-          example: TechCorp S.r.l.
         email:
           type: string
-          example: hr@techcorp.com
+          format: email
         headquarters:
           type: string
-          example: Via Roma 123, 20100 Milano, Italy
         website:
           type: string
-          example: https://www.techcorp.com
+          format: uri
+        privacy:
+          type: boolean
+          default: false
         isVerified:
           type: boolean
           default: false
-          example: false
         createdAt:
           type: string
+          format: date-time
         updatedAt:
           type: string
+          format: date-time
+
+    Education:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: string
+          description: "MongoDB ObjectId"
+        name:
+          type: string
+        university:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Application:
+      type: object
+      required:
+        - student
+        - offer
+        - employer
+      properties:
+        id:
+          type: string
+          description: "MongoDB ObjectId"
+        student:
+          type: string
+          description: "Ref to Student ObjectId"
+        offer:
+          type: string
+          description: "Ref to Offer ObjectId"
+        employer:
+          type: string
+          description: "Ref to Employer ObjectId"
+        status:
+          type: string
+          enum: [pending, reviewed, accepted, rejected, withdrawn]
+          default: "pending"
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              changedAt:
+                type: string
+                format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AvailabilityProfile:
+      type: object
+      required:
+        - student
+        - skills
+        - availability
+      properties:
+        id:
+          type: string
+          description: "MongoDB ObjectId"
+        student:
+          type: string
+          description: "Ref to Student ObjectId"
+        phone:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+            description: "Ref to Skill ObjectId"
+        experience:
+          type: array
+          items:
+            type: string
+        workHours:
+          type: integer
+          default: 0
+        availability:
+          type: object
+          properties:
+            dataInizio:
+              type: string
+              format: date-time
+            dataFine:
+              type: string
+              format: date-time
+        status:
+          type: string
+          enum: [pending, visible, hide]
+          default: "pending"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Offer:
+      type: object
+      required:
+        - employer
+        - position
+        - description
+        - workHours
+        - workLocation
+        - contactMethod
+      properties:
+        id:
+          type: string
+          description: "MongoDB ObjectId"
+        employer:
+          type: string
+          description: "Ref to Employer ObjectId"
+        position:
+          type: string
+        description:
+          type: string
+        desiredSkills:
+          type: array
+          items:
+            type: string
+            description: "Ref to Skill ObjectId"
+        workHours:
+          type: string
+        workLocation:
+          type: string
+        contactMethod:
+          type: string
+        salary:
+          type: string
+        contractType:
+          type: string
+          enum: [determinato, indeterminato, stage, altro]
+        contractDuration:
+          type: string
+        status:
+          type: string
+          enum: [published, draft, expired]
+          default: "published"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     Skill:
       type: object
@@ -431,179 +1859,27 @@ components:
         - name
         - type
       properties:
-        _id:
+        id:
           type: string
-          example: 507f1f77bcf86cd799439011
+          description: "MongoDB ObjectId"
         name:
           type: string
-          example: JavaScript
         type:
           type: string
-          example: Programming Language
         description:
           type: string
-          example: A versatile programming language for web development
         createdAt:
           type: string
+          format: date-time
         updatedAt:
           type: string
-
-    Education:
-      type: object
-      required:
-        - name
-      properties:
-        _id:
-          type: string
-          example: 507f1f77bcf86cd799439011
-        name:
-          type: string
-          example: Università degli Studi di Trento
-        university:
-          type: boolean
-          default: false
-          example: true
-        createdAt:
-          type: string
-        updatedAt:
-          type: string
-
-    AvailabilityProfile:
-      type: object
-      required:
-        - student
-        - skills
-      properties:
-        _id:
-          type: string
-          example: 507f1f77bcf86cd799439011
-        student:
-          type: string
-          description: Reference to Student document
-          example: 507f1f77bcf86cd799439011
-        phone:
-          type: string
-          example: '+39 123 456 7890'
-        skills:
-          type: array
-          items:
-            type: string
-          example: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012']
-        experience:
-          type: array
-          items:
-            type: string
-          example: ['Junior Developer at XYZ Corp']
-        workHours:
-          type: number
-          example: 20
-        availability:
-          type: string
-        cvFile:
-          type: object
-          properties:
-            filename:
-              type: string
-            mimeType:
-              type: string
-              default: application/pdf
-            size:
-              type: number
-            path:
-              type: string
-        createdAt:
-          type: string
-        updatedAt:
-          type: string
-
-    Offer:
-      type: object
-      required:
-        - employee
-        - position
-        - description
-        - workHours
-        - workLocation
-        - contacts
-      properties:
-        _id:
-          type: string
-          example: 507f1f77bcf86cd799439011
-        employee:
-          type: string
-          description: Reference to Employer document
-          example: 507f1f77bcf86cd799439011
-        position:
-          type: string
-          example: Junior Web Developer
-        description:
-          type: string
-          example: Looking for a motivated junior developer to join our team
-        requirements:
-          type: array
-          items:
-            type: string
-          example: ['JavaScript', 'React', 'Node.js']
-        workHours:
-          type: number
-          example: 40
-        contractExpiration:
-          type: string
-        workLocation:
-          type: string
-          example: Milano, Italy
-        contacts:
-          type: array
-          items:
-            type: string
-          example: ['hr@techcorp.com', '+39 02 1234567']
-        createdAt:
-          type: string
-        updatedAt:
-          type: string
-
-    Application:
-      type: object
-      required:
-        - student
-        - date
-      properties:
-        _id:
-          type: string
-          example: 507f1f77bcf86cd799439011
-        student:
-          type: string
-          description: Reference to Student document
-          example: 507f1f77bcf86cd799439011
-        offer:
-          type: string
-          description: Reference to Offer document (note that schema has duplicate 'student' field, assuming second should be 'offer')
-          example: 507f1f77bcf86cd799439012
-        date:
-          type: string
-        createdAt:
-          type: string
-        updatedAt:
-          type: string
-
-    Error:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: false
-        message:
-          type: string
-          example: Errore durante l'operazione
-        error:
-          type: string
-          example: Dettaglio tecnico dell'errore
+          format: date-time
 
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
-      description: JWT token obtained from the /login endpoint
-
-security:
-  - bearerAuth: []
+      bearerFormat: JWT
+      description: >-
+        Standard JWT Bearer token authentication.
+        Enter your token in the format: Bearer <token>.
