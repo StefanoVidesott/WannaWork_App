@@ -1295,6 +1295,36 @@ paths:
           $ref: "#/components/responses/InternalServerError"
 
 components:
+  responses:
+    UnauthorizedError:
+      description: "Unauthorized. Missing or invalid token."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GenericResponse"
+          example:
+            success: false
+            message: "Token mancante. / Token non valido."
+
+    ForbiddenError:
+      description: "Forbidden. Token is valid but user lacks required permissions."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GenericResponse"
+          example:
+            success: false
+            message: "Accesso negato / Non autorizzato."
+
+    InternalServerError:
+      description: "Internal Server Error."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GenericResponse"
+          example:
+            success: false
+            message: "Errore interno del server"
   schemas:
     # --- DTO Schemas  ---
 
@@ -1557,7 +1587,7 @@ components:
           example: true
         hasApplied:
           type: boolean
-          description: 'True if there is an active (non-withdrawn) application'
+          description: "True if there is an active (non-withdrawn) application"
         applicationDate:
           type: string
           format: date-time
@@ -1579,7 +1609,7 @@ components:
           type: array
           items:
             type: object
-            description: 'Application with populated Offer and Employer details'
+            description: "Application with populated Offer and Employer details"
             properties:
               _id:
                 type: string
