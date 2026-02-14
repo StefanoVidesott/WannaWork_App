@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import Offer from '../models/Offer.js';
 import Application from '../models/Application.js';
 import Employer from '../models/Employer.js';
+import AvailabilityProfile from '../models/AvailabilityProfile.js';
 
 import tokenChecker from '../middleware/tokenChecker.js';
 import validateOffer from '../middleware/validateOffer.js';
@@ -117,10 +118,75 @@ router.get('/my-offers', tokenChecker, async (req, res) => {
             return res.status(403).json({ success: false, message: 'Accesso negato.' });
         }
 
-        const offers = await Offer.find({ employer: req.user.id }).sort({ createdAt: -1 });
-        res.json({ success: true, data: offers });
+        const offers = await Offer.find({ employer: req.user.id }).sort({ createdAt: -1 }).lean();
+
+        const offersWithCounts = await Promise.all(offers.map(async (offer) => {
+            const applicationCount = await Application.countDocuments({
+                offer: offer._id,
+                status: { $ne: 'withdrawn' }
+            });
+            return { ...offer, applicationCount };
+        }));
+
+        res.json({ success: true, data: offersWithCounts });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// GET /api/v1/offers/:id/candidates (NUOVA ROTTA)
+router.get('/:id/candidates', tokenChecker, async (req, res) => {
+    try {
+        if (req.user.userType !== 'Employer') {
+            return res.status(403).json({ success: false, message: 'Accesso negato. Solo i datori di lavoro possono vedere i candidati.' });
+        }
+
+        const offerId = req.params.id;
+
+        if (!mongoose.Types.ObjectId.isValid(offerId)) {
+            return res.status(400).json({ success: false, message: 'ID offerta non valido' });
+        }
+
+        const offer = await Offer.findById(offerId);
+        if (!offer) {
+            return res.status(404).json({ success: false, message: 'Offerta non trovata.' });
+        }
+        if (offer.employer.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Non autorizzato a visualizzare i candidati di questa offerta.' });
+        }
+
+        const applications = await Application.find({
+            offer: offerId,
+            status: { $ne: 'withdrawn' }
+        }).populate('student', 'name surname');
+
+        const candidatesData = await Promise.all(applications.map(async (app) => {
+            if (!app.student) return null;
+
+            const profile = await AvailabilityProfile.findOne({ student: app.student._id })
+                .populate('skills', 'name');
+
+            return {
+                _id: app._id,
+                studentName: app.student.name,
+                studentSurname: app.student.surname,
+                applicationDate: app.createdAt,
+                profileId: profile ? profile._id : null,
+                skills: profile && profile.skills ? profile.skills : []
+            };
+        }));
+
+        const filteredCandidates = candidatesData.filter(c => c !== null);
+
+        res.json({
+            success: true,
+            offer: { position: offer.position },
+            data: filteredCandidates
+        });
+
+    } catch (err) {
+        console.error('❌ Errore GET /offers/:id/candidates:', err);
+        res.status(500).json({ success: false, message: 'Errore interno del server' });
     }
 });
 
@@ -190,7 +256,7 @@ router.put('/:id', tokenChecker, validateOffer, async (req, res) => {
             offer.position = position.trim();
         }
         if (description && offer.description !== description) {
-            changes.description = "Updated"; // Testo lungo, logghiamo solo l'evento
+            changes.description = "Updated";
             offer.description = description.trim();
         }
         if (workHours && offer.workHours !== workHours) {

@@ -87,6 +87,39 @@ router.get('/me', tokenChecker, async (req, res) => {
     }
 });
 
+// GET /api/v1/availabilityProfile/:id
+router.get('/:id', tokenChecker, async (req, res) => {
+    try {
+        const profileId = req.params.id;
+
+        if (!mongoose.Types.ObjectId.isValid(profileId)) {
+            return res.status(400).json({ success: false, message: 'ID profilo non valido.' });
+        }
+
+        const profile = await AvailabilityProfile.findById(profileId)
+            .populate('student', 'name surname email')
+            .populate('skills', 'name type')
+            .exec();
+
+        if (!profile) {
+            return res.status(404).json({ success: false, message: 'Profilo non trovato o rimosso dallo studente.' });
+        }
+
+        if (req.user.userType === 'Student' && profile.student._id.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'Non sei autorizzato a visualizzare questo profilo.' });
+        }
+
+        return res.status(200).json({
+            success: true,
+            profile: profile
+        });
+
+    } catch (err) {
+        console.error('❌ Errore recupero profilo:', err);
+        return res.status(500).json({ success: false, message: 'Errore interno del server' });
+    }
+});
+
 // PUT /api/v1/availabilityProfile/:id
 router.put('/:id', tokenChecker, validateAvailabilityProfile, async (req, res) => {
     try {
@@ -191,10 +224,10 @@ router.delete('/:id', tokenChecker, async (req, res) => {
             student: userId,
             status: { $in: ['pending', 'reviewed'] }
         })
-        .populate('employer', 'email')
-        .populate('offer', 'position')
-        .populate('student', 'name surname')
-        .session(session);
+            .populate('employer', 'email')
+            .populate('offer', 'position')
+            .populate('student', 'name surname')
+            .session(session);
 
         await Application.updateMany(
             { student: userId, status: { $in: ['pending', 'reviewed'] } },
