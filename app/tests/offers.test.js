@@ -112,14 +112,20 @@ describe('Offer Routes', () => {
     });
 
     describe('GET /api/v1/offers/my-offers', () => {
-        test('Dovrebbe restituire offerte dell\'employer (200)', async () => {
-            const mockSort = jest.fn().mockResolvedValue([]);
+        test('Dovrebbe restituire offerte dell\'employer con conteggio candidature (200)', async () => {
+            const mockOffers = [{ _id: 'offer1', position: 'Sviluppatore' }];
+            const mockLean = jest.fn().mockResolvedValue(mockOffers);
+            const mockSort = jest.fn().mockReturnValue({ lean: mockLean });
             Offer.find.mockReturnValue({ sort: mockSort });
+
+            Application.countDocuments.mockResolvedValue(3);
 
             const res = await request(app).get('/api/v1/offers/my-offers');
 
             expect(res.statusCode).toBe(200);
             expect(Offer.find).toHaveBeenCalledWith({ employer: mockEmployerId });
+
+            expect(res.body.data[0].applicationCount).toBe(3);
         });
     });
 
