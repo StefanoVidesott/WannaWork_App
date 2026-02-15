@@ -27,9 +27,19 @@ const employerSchema = new mongoose.Schema({
         type: String,
         match: [/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/, 'URL non valido']
     },
-    privacy: {
-        type: Boolean,
-        default: false
+    privacyConsent: {
+        accepted: {
+            type: Boolean,
+            required: [true, 'Il consenso alla privacy è obbligatorio']
+        },
+        version: {
+            type: String,
+            required: true
+        },
+        acceptedAt: {
+            type: Date,
+            required: true
+        }
     },
     isVerified: {
         type: Boolean,

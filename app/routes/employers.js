@@ -13,8 +13,14 @@ router.post('/registration', validateEmployerRegistration, async (req, res) => {
     try {
         const { companyName, email, headquarters, website, password, privacy } = req.body;
 
-        const existingEmployer = await Employer.findOne({ email: email.toLowerCase() });
+        if (privacy !== true) {
+            return res.status(400).json({
+                success: false,
+                message: 'È obbligatorio accettare l\'informativa sulla privacy per potersi registrare.'
+            });
+        }
 
+        const existingEmployer = await Employer.findOne({ email: email.toLowerCase() });
         if (existingEmployer) {
             return res.status(409).json({ success: false, message: 'Questa email aziendale è già registrata' });
         }
@@ -28,7 +34,11 @@ router.post('/registration', validateEmployerRegistration, async (req, res) => {
             password: hashedPassword,
             headquarters: headquarters.trim(),
             website: website ? website.trim() : undefined,
-            privacy: privacy,
+            privacyConsent: {
+                accepted: true,
+                version: 'v1.0',
+                acceptedAt: new Date()
+            },
             isVerified: false
         });
 
@@ -56,7 +66,7 @@ router.post('/registration', validateEmployerRegistration, async (req, res) => {
         console.error('Errore durante la registrazione:', error);
 
         if (error.name === 'ValidationError') {
-             return res.status(400).json({ success: false, message: 'Dati non validi', error: error.message });
+            return res.status(400).json({ success: false, message: 'Dati non validi', error: error.message });
         }
 
         return res.status(500).json({ success: false, message: 'Errore del server durante la registrazione' });

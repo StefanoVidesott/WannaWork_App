@@ -140,7 +140,7 @@ export const sendNewApplicationNotification = async (employerEmail, jobTitle, st
         <p>Ottime notizie! Lo studente <span class="accent">${studentName}</span> si è appena candidato per la tua offerta: <strong>${jobTitle}</strong>.</p>
         <p>Accedi alla tua area riservata per visualizzare il suo profilo, le competenze e i contatti.</p>
         <div style="text-align: center;">
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/employer/dashboard" class="button">Visualizza Candidati</a>
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/employer" class="button">Visualizza Candidati</a>
         </div>
     `;
     return await executeMailSend({

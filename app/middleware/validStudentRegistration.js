@@ -44,8 +44,8 @@ const validateStudentRegistration = (req, res, next) => {
         errors.push('Le password non coincidono');
     }
 
-    if (!privacy) {
-        errors.push('Devi accettare la privacy policy');
+    if (privacy !== true) {
+        errors.push('Devi accettare la privacy policy per poterti registrare');
     }
 
     if (errors.length > 0) {

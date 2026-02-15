@@ -19,6 +19,13 @@ router.post('/registration', validateStudentRegistration, async (req, res) => {
 	try {
 		const { name, surname, email, education, educationYear, password, confirmPassword, privacy } = req.body;
 
+		if (privacy !== true) {
+			return res.status(400).json({
+				success: false,
+				message: 'È obbligatorio accettare l\'informativa sulla privacy per potersi registrare.'
+			});
+		}
+
 		const existingStudent = await Student.findOne({ email: email.toLowerCase() });
 		if (existingStudent) {
 			return res.status(409).json({ success: false, message: 'Email già registrata' });
@@ -38,7 +45,11 @@ router.post('/registration', validateStudentRegistration, async (req, res) => {
 			education,
 			educationYear: Number(educationYear),
 			password: hashedPassword,
-			privacy: privacy,
+			privacyConsent: {
+                accepted: true,
+                version: 'v1.0',
+                acceptedAt: new Date()
+            },
 			isVerified: false
 		});
 

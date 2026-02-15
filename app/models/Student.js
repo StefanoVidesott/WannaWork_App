@@ -34,9 +34,19 @@ const studentSchema = new mongoose.Schema({
         minlength: [12, 'Password deve essere almeno 12 caratteri'],
         select: false
     },
-    privacy: {
-        type: Boolean,
-        default: false
+    privacyConsent: {
+        accepted: {
+            type: Boolean,
+            required: [true, 'Il consenso alla privacy è obbligatorio']
+        },
+        version: {
+            type: String,
+            required: true
+        },
+        acceptedAt: {
+            type: Date,
+            required: true
+        }
     },
     isVerified: {
         type: Boolean,
