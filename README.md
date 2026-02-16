@@ -38,7 +38,7 @@ Make sure you have the following installed on your machine:
 ### 2. Clone and Install
 Clone the repository and install the required dependencies:
 ```bash
-git clone [https://github.com/StefanoVidesott/WannaWork_App.git](https://github.com/StefanoVidesott/WannaWork_App.git)
+git clone https://github.com/StefanoVidesott/WannaWork_App.git
 cd WannaWork_App
 npm install
 ```
